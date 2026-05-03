@@ -1,0 +1,7 @@
+pre-commit:
+  commands:
+    fmt-check:
+      run: make fmt-check
+    lint:
+      glob: "**/*.tf"
+      run: tflint --recursive --format compact

@@ -1,0 +1,9 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["github>FelipeFuhr/ffreis-platform-standards:renovate/default"],
+  "enabledManagers": ["pep621", "pip_requirements", "dockerfile", "github-actions"],
+  "packageRules": [
+    { "matchManagers": ["pep621", "pip_requirements"], "groupName": "Python dependencies", "labels": ["dependencies"] },
+    { "matchManagers": ["dockerfile"], "groupName": "Docker base images", "labels": ["dependencies"] }
+  ]
+}

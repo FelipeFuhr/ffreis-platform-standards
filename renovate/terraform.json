@@ -1,0 +1,8 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["github>FelipeFuhr/ffreis-platform-standards:renovate/default"],
+  "enabledManagers": ["terraform", "github-actions"],
+  "packageRules": [
+    { "matchManagers": ["terraform"], "groupName": "Terraform providers and modules", "labels": ["dependencies"] }
+  ]
+}

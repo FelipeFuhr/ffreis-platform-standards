@@ -1,0 +1,5 @@
+pre-commit:
+  commands:
+    fmt-check:
+      glob: "**/*.rs"
+      run: make fmt-check
