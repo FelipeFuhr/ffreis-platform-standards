@@ -1,0 +1,5 @@
+pre-commit:
+  commands:
+    fmt-check:
+      glob: "**/*.py"
+      run: make fmt-check
