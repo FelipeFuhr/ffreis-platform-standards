@@ -51,6 +51,8 @@ jobs:
         print(f'All {len(files)} JSON configs are valid.')
         "
 
+        pip install PyYAML --quiet
+
         python3 -c "
         import yaml, glob, sys
         files = sorted(['lefthook.yml'] + glob.glob('lefthook/*.yml') + glob.glob('golangci/*.yml'))
