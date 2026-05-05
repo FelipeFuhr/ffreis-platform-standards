@@ -61,12 +61,24 @@ pre-push:
 ```
 
 Available shared configs:
-- `lefthook/base.yml` — hygiene + secret-scan + agents-drift-hint + commit-msg (ALL repos)
+- `lefthook/base.yml` — hygiene (merge markers, large files, binary files) + secret-scan + agents-drift-hint + commit-msg (ALL repos)
 - `lefthook/go.yml` — go-mod-drift + fmt-check + lint
 - `lefthook/python.yml` — fmt-check (Python glob)
 - `lefthook/rust.yml` — fmt-check (Rust glob)
 - `lefthook/terraform.yml` — fmt-check + tflint lint (Terraform glob)
 - `lefthook/actionlint.yml` — actionlint on GitHub Actions workflows (optional, add for repos with significant workflow files)
+
+**All hook logic is inlined in the YAML** — repos do NOT need local `scripts/hooks/*.sh`
+files. The `scripts/bootstrap_lefthook.sh` still needs to be per-repo (it runs before
+lefthook is installed, so it can't be a remote). Existing `scripts/hooks/*.sh` files in
+repos are dead code once this config is pulled and can be removed.
+
+To pin to a stable version instead of always tracking main:
+```yaml
+remotes:
+  - git_url: https://github.com/FelipeFuhr/ffreis-platform-standards
+    ref: v1.0.0  # pin to a release tag; Renovate will track updates
+```
 
 ## golangci standard
 
@@ -74,9 +86,31 @@ Copy `golangci/standard.yml` to `.golangci.yml` in each Go repo. The config is g
 v2 format. The only value that may need adjustment per repo is `goimports.local-prefixes`
 (default is `github.com/ffreis`, which covers all repos in this org).
 
+## CI and versioning
+
+**CI (`ci.yml`)** validates on every PR:
+- `renovate/*.json` — valid JSON (python3 json.tool)
+- `lefthook/*.yml` + `golangci/*.yml` — valid YAML
+- Shell scripts — shellcheck
+- Workflow files — actionlint + CodeQL
+
+**Versioning (release-please)**: When `vars.RELEASE_PLEASE_ENABLED = 'true'` is set in
+GitHub repo settings, merging conventional-commit PRs automatically creates versioned
+releases (`v1.0.0`, `v1.1.0`, …). This lets fleet repos pin to stable preset versions:
+```json
+{"extends": ["github>FelipeFuhr/ffreis-platform-standards:renovate/go#v1.0.0"]}
+```
+Callers using `@main` always get the latest; callers pinning to a tag get stability.
+
+**Renovate on this repo**: Managed via the top-level `renovate.json`, which tracks
+`.github/workflows/` action SHA pins using the `github-actions` manager.
+
+**Lefthook on this repo**: Self-referential — this repo uses its own `lefthook/base.yml`
+and `lefthook/actionlint.yml` as the remote source.
+
 ## Making fleet-wide changes
 
 1. Update the relevant file in this repo
-2. Open a PR, merge to main
-3. All repos pick up the change automatically on next Renovate run (for renovate/) or
-   next `lefthook install` (for lefthook/)
+2. Open a PR — CI validates JSON/YAML/shell automatically
+3. Merge to main
+4. Renovate runs pick up changes fleet-wide; lefthook `remotes:` pulls on next `lefthook install`
