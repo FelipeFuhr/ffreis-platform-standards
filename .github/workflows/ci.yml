@@ -51,7 +51,7 @@ jobs:
         print(f'All {len(files)} JSON configs are valid.')
         "
 
-        pip install pyyaml --quiet
+        pip install PyYAML --quiet
 
         python3 -c "
         import yaml, glob, sys
