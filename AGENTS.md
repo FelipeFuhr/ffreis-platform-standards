@@ -61,12 +61,24 @@ pre-push:
 ```
 
 Available shared configs:
-- `lefthook/base.yml` — hygiene + secret-scan + agents-drift-hint + commit-msg (ALL repos)
+- `lefthook/base.yml` — hygiene (merge markers, large files, binary files) + secret-scan + agents-drift-hint + commit-msg (ALL repos)
 - `lefthook/go.yml` — go-mod-drift + fmt-check + lint
 - `lefthook/python.yml` — fmt-check (Python glob)
 - `lefthook/rust.yml` — fmt-check (Rust glob)
 - `lefthook/terraform.yml` — fmt-check + tflint lint (Terraform glob)
 - `lefthook/actionlint.yml` — actionlint on GitHub Actions workflows (optional, add for repos with significant workflow files)
+
+**All hook logic is inlined in the YAML** — repos do NOT need local `scripts/hooks/*.sh`
+files. The `scripts/bootstrap_lefthook.sh` still needs to be per-repo (it runs before
+lefthook is installed, so it can't be a remote). Existing `scripts/hooks/*.sh` files in
+repos are dead code once this config is pulled and can be removed.
+
+To pin to a stable version instead of always tracking main:
+```yaml
+remotes:
+  - git_url: https://github.com/FelipeFuhr/ffreis-platform-standards
+    ref: v1.0.0  # pin to a release tag; Renovate will track updates
+```
 
 ## golangci standard
 

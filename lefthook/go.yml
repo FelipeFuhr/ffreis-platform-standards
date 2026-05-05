@@ -1,7 +1,22 @@
 pre-commit:
   commands:
     go-mod-drift:
-      run: ./scripts/hooks/check_go_mod_drift.sh
+      run: |
+        set -euo pipefail
+        [ -f go.mod ] || exit 0
+        tmp=$(mktemp -d)
+        cp go.mod "$tmp/go.mod"
+        [ -f go.sum ] && cp go.sum "$tmp/go.sum"
+        go mod tidy 2>/dev/null
+        drift=0
+        diff -q go.mod "$tmp/go.mod" > /dev/null 2>&1 || drift=1
+        [ -f go.sum ] && [ -f "$tmp/go.sum" ] && \
+          { diff -q go.sum "$tmp/go.sum" > /dev/null 2>&1 || drift=1; }
+        cp "$tmp/go.mod" go.mod
+        [ -f "$tmp/go.sum" ] && cp "$tmp/go.sum" go.sum
+        rm -rf "$tmp"
+        [ "$drift" -eq 0 ] || {
+          echo "go.mod/go.sum drift: run 'go mod tidy' and commit the result" >&2; exit 1; }
     fmt-check:
       run: make fmt-check
     lint:

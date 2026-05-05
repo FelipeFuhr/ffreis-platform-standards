@@ -2,11 +2,28 @@ pre-commit:
   parallel: true
   commands:
     hygiene-merge-markers:
-      run: ./scripts/hooks/check_merge_markers.sh
+      run: |
+        set -euo pipefail
+        files=$(git diff --cached --name-only)
+        [ -z "$files" ] && exit 0
+        bad=$(echo "$files" | xargs grep -l '^<<<<<<< \|^=======$\|^>>>>>>> ' 2>/dev/null || true)
+        [ -n "$bad" ] && { echo "merge markers in: $bad" >&2; exit 1; }
     hygiene-large-files:
-      run: ./scripts/hooks/check_large_files.sh
+      run: |
+        set -euo pipefail
+        MAX_KB=500
+        while IFS= read -r file; do
+          [ -f "$file" ] || continue
+          size=$(du -k "$file" | cut -f1)
+          [ "$size" -gt "$MAX_KB" ] && { echo "large file ($size KB): $file" >&2; exit 1; }
+        done < <(git diff --cached --name-only)
     hygiene-binary-files:
-      run: ./scripts/hooks/check_binary_files.sh
+      run: |
+        set -euo pipefail
+        while IFS= read -r file; do
+          [ -f "$file" ] || continue
+          file "$file" | grep -q 'binary' && { echo "binary file staged: $file" >&2; exit 1; }
+        done < <(git diff --cached --name-only)
     secret-scan:
       run: make secrets-scan-staged
     agents-drift-hint:
@@ -21,4 +38,12 @@ pre-commit:
 commit-msg:
   commands:
     conventional-commits:
-      run: ./scripts/hooks/check_commit_msg.sh {1}
+      run: |
+        set -euo pipefail
+        msg=$(cat "{1}")
+        pattern='^(feat|fix|docs|chore|refactor|test|ci|perf|style|build|revert)(\([a-z0-9-]+\))?: .{1,100}$'
+        echo "$msg" | grep -qE "$pattern" || {
+          echo "non-conventional commit: $msg" >&2
+          echo "expected: type(scope): description  [types: feat fix docs chore refactor test ci perf style build revert]" >&2
+          exit 1
+        }
