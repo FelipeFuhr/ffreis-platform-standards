@@ -6,15 +6,28 @@ pre-commit:
         [ -f go.mod ] || exit 0
         tmp=$(mktemp -d)
         cp go.mod "$tmp/go.mod"
-        [ -f go.sum ] && cp go.sum "$tmp/go.sum"
+        had_sum=0
+        [ -f go.sum ] && { cp go.sum "$tmp/go.sum"; had_sum=1; }
+        cleanup() {
+          cp "$tmp/go.mod" go.mod
+          if [ "$had_sum" -eq 1 ]; then
+            cp "$tmp/go.sum" go.sum
+          else
+            rm -f go.sum
+          fi
+          rm -rf "$tmp"
+        }
+        trap cleanup EXIT
         go mod tidy 2>/dev/null
         drift=0
         diff -q go.mod "$tmp/go.mod" > /dev/null 2>&1 || drift=1
-        [ -f go.sum ] && [ -f "$tmp/go.sum" ] && \
-          { diff -q go.sum "$tmp/go.sum" > /dev/null 2>&1 || drift=1; }
-        cp "$tmp/go.mod" go.mod
-        [ -f "$tmp/go.sum" ] && cp "$tmp/go.sum" go.sum
-        rm -rf "$tmp"
+        if [ -f go.sum ]; then
+          if [ "$had_sum" -eq 1 ]; then
+            diff -q go.sum "$tmp/go.sum" > /dev/null 2>&1 || drift=1
+          else
+            drift=1
+          fi
+        fi
         [ "$drift" -eq 0 ] || {
           echo "go.mod/go.sum drift: run 'go mod tidy' and commit the result" >&2; exit 1; }
     fmt-check:

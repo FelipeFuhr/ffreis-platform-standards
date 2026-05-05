@@ -102,8 +102,8 @@ releases (`v1.0.0`, `v1.1.0`, …). This lets fleet repos pin to stable preset v
 ```
 Callers using `@main` always get the latest; callers pinning to a tag get stability.
 
-**Renovate on this repo**: Tracks its own `.github/workflows/` action SHA pins via an
-inline config (not self-referential, to avoid bootstrap issues).
+**Renovate on this repo**: Managed via the top-level `renovate.json`, which tracks
+`.github/workflows/` action SHA pins using the `github-actions` manager.
 
 **Lefthook on this repo**: Self-referential — this repo uses its own `lefthook/base.yml`
 and `lefthook/actionlint.yml` as the remote source.

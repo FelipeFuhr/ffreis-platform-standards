@@ -37,8 +37,9 @@ jobs:
       commands: |
         python3 -c "
         import json, glob, sys
+        files = sorted(['renovate.json'] + glob.glob('renovate/*.json'))
         failed = []
-        for f in sorted(glob.glob('renovate/*.json')):
+        for f in files:
             try:
                 json.load(open(f))
                 print(f'  OK  {f}')
@@ -47,12 +48,12 @@ jobs:
                 failed.append(f)
         if failed:
             sys.exit(1)
-        print(f'All {len(glob.glob(\"renovate/*.json\"))} renovate presets are valid JSON.')
+        print(f'All {len(files)} JSON configs are valid.')
         "
 
         python3 -c "
         import yaml, glob, sys
-        files = sorted(glob.glob('lefthook/*.yml') + glob.glob('golangci/*.yml'))
+        files = sorted(['lefthook.yml'] + glob.glob('lefthook/*.yml') + glob.glob('golangci/*.yml'))
         failed = []
         for f in files:
             try:

@@ -4,26 +4,32 @@ pre-commit:
     hygiene-merge-markers:
       run: |
         set -euo pipefail
-        files=$(git diff --cached --name-only)
-        [ -z "$files" ] && exit 0
-        bad=$(echo "$files" | xargs grep -l '^<<<<<<< \|^=======$\|^>>>>>>> ' 2>/dev/null || true)
+        tmpfiles=$(mktemp)
+        trap 'rm -f "$tmpfiles"' EXIT
+        git diff --cached --name-only -z > "$tmpfiles"
+        [ -s "$tmpfiles" ] || exit 0
+        bad=$(xargs -0 grep -l '^<<<<<<< \|^=======$\|^>>>>>>> ' < "$tmpfiles" 2>/dev/null || true)
         [ -n "$bad" ] && { echo "merge markers in: $bad" >&2; exit 1; }
     hygiene-large-files:
       run: |
         set -euo pipefail
-        MAX_KB=500
-        while IFS= read -r file; do
+        MAX_BYTES=$((500 * 1024))
+        while IFS= read -r -d '' file; do
           [ -f "$file" ] || continue
-          size=$(du -k "$file" | cut -f1)
-          [ "$size" -gt "$MAX_KB" ] && { echo "large file ($size KB): $file" >&2; exit 1; }
-        done < <(git diff --cached --name-only)
+          size=$(git cat-file -s ":$file" 2>/dev/null || echo 0)
+          [ "$size" -gt "$MAX_BYTES" ] && { echo "large file ($((size / 1024)) KB): $file" >&2; exit 1; }
+        done < <(git diff --cached --name-only -z)
     hygiene-binary-files:
       run: |
         set -euo pipefail
-        while IFS= read -r file; do
+        while IFS= read -r -d '' file; do
           [ -f "$file" ] || continue
-          file "$file" | grep -q 'binary' && { echo "binary file staged: $file" >&2; exit 1; }
-        done < <(git diff --cached --name-only)
+          mime=$(file --mime-type -b "$file")
+          case "$mime" in
+            text/*|application/json|application/xml|application/x-sh|inode/x-empty) ;;
+            *) echo "binary file staged: $file ($mime)" >&2; exit 1 ;;
+          esac
+        done < <(git diff --cached --name-only -z)
     secret-scan:
       run: make secrets-scan-staged
     agents-drift-hint:
@@ -40,10 +46,10 @@ commit-msg:
     conventional-commits:
       run: |
         set -euo pipefail
-        msg=$(cat "{1}")
+        msg=$(head -1 "{1}")
         pattern='^(feat|fix|docs|chore|refactor|test|ci|perf|style|build|revert)(\([a-z0-9-]+\))?: .{1,100}$'
         echo "$msg" | grep -qE "$pattern" || {
           echo "non-conventional commit: $msg" >&2
-          echo "expected: type(scope): description  [types: feat fix docs chore refactor test ci perf style build revert]" >&2
+          echo "expected: type: description  or  type(scope): description  [types: feat fix docs chore refactor test ci perf style build revert]" >&2
           exit 1
         }

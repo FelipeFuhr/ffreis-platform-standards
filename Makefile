@@ -12,11 +12,12 @@ lint: ## Lint workflow YAML with actionlint
 		echo "ERROR: actionlint not found. Install from https://github.com/rhysd/actionlint"; exit 1; }
 	actionlint
 
-validate-json: ## Validate all renovate/*.json preset files
+validate-json: ## Validate renovate.json and all renovate/*.json preset files
 	@python3 -c "
 	import json, glob, sys
+	files = sorted(['renovate.json'] + glob.glob('renovate/*.json'))
 	failed = []
-	for f in sorted(glob.glob('renovate/*.json')):
+	for f in files:
 	    try:
 	        json.load(open(f))
 	        print(f'  OK  {f}')
@@ -25,13 +26,13 @@ validate-json: ## Validate all renovate/*.json preset files
 	        failed.append(f)
 	if failed:
 	    sys.exit(1)
-	print(f'All {len(glob.glob(chr(34)+\"renovate/*.json\"+chr(34)))} presets valid.')
+	print(f'All {len(files)} JSON configs valid.')
 	"
 
-validate-yaml: ## Validate all lefthook/*.yml and golangci/*.yml files
+validate-yaml: ## Validate lefthook.yml and all lefthook/*.yml and golangci/*.yml files
 	@python3 -c "
 	import yaml, glob, sys
-	files = sorted(glob.glob('lefthook/*.yml') + glob.glob('golangci/*.yml'))
+	files = sorted(['lefthook.yml'] + glob.glob('lefthook/*.yml') + glob.glob('golangci/*.yml'))
 	failed = []
 	for f in files:
 	    try:
@@ -48,9 +49,11 @@ validate-yaml: ## Validate all lefthook/*.yml and golangci/*.yml files
 fmt-check: lint validate-json validate-yaml ## Run all local validation checks
 
 shellcheck: ## Lint shell scripts
-	@command -v shellcheck >/dev/null 2>&1 && \
-	  shellcheck -x create_prs.sh create_ci_tooling_prs.sh scripts/bootstrap_lefthook.sh || \
-	  echo "shellcheck not found; skipping"
+	@if command -v shellcheck >/dev/null 2>&1; then \
+	  shellcheck -x create_prs.sh create_ci_tooling_prs.sh scripts/bootstrap_lefthook.sh; \
+	else \
+	  echo "shellcheck not found; skipping"; \
+	fi
 
 secrets-scan-staged: ## Scan staged files for secrets
 	@command -v gitleaks >/dev/null 2>&1 || { \
@@ -61,7 +64,7 @@ lefthook-bootstrap: ## Download lefthook binary to .bin/
 	bash ./scripts/bootstrap_lefthook.sh
 
 lefthook-install: ## Install git hooks via lefthook
-	lefthook install
+	.bin/lefthook install
 
 hooks: lefthook-bootstrap lefthook-install ## Bootstrap and install all git hooks
 
