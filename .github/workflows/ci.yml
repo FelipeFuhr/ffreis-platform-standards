@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  actions: read
+  security-events: write
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  workflows-policy:
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-workflows-policy.yml@a02d736d25fa99fca8b4b623af9467d7afc472a4 # v1.0.3
+
+  codeql-actions:
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-codeql.yml@a02d736d25fa99fca8b4b623af9467d7afc472a4 # v1.0.3
+    with:
+      languages: actions
+      source-root: .
+      upload-sarif: false
+
+  # Validate that all renovate/*.json preset files are valid JSON and all
+  # lefthook/*.yml + golangci/*.yml configs are valid YAML.
+  validate-presets:
+    name: Validate preset files
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-run-commands.yml@a02d736d25fa99fca8b4b623af9467d7afc472a4 # v1.0.3
+    with:
+      setup-python: true
+      commands: |
+        python3 -c "
+        import json, glob, sys
+        files = sorted(['renovate.json'] + glob.glob('renovate/*.json'))
+        failed = []
+        for f in files:
+            try:
+                json.load(open(f))
+                print(f'  OK  {f}')
+            except json.JSONDecodeError as e:
+                print(f'  FAIL {f}: {e}')
+                failed.append(f)
+        if failed:
+            sys.exit(1)
+        print(f'All {len(files)} JSON configs are valid.')
+        "
+
+        pip install PyYAML --quiet
+
+        python3 -c "
+        import yaml, glob, sys
+        files = sorted(['lefthook.yml'] + glob.glob('lefthook/*.yml') + glob.glob('golangci/*.yml'))
+        failed = []
+        for f in files:
+            try:
+                yaml.safe_load(open(f))
+                print(f'  OK  {f}')
+            except yaml.YAMLError as e:
+                print(f'  FAIL {f}: {e}')
+                failed.append(f)
+        if failed:
+            sys.exit(1)
+        print(f'All {len(files)} YAML config files are valid.')
+        "
+
+  shellcheck:
+    name: Shell scripts
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-shellcheck.yml@a02d736d25fa99fca8b4b623af9467d7afc472a4 # v1.0.3
+    with:
+      working-directory: .
