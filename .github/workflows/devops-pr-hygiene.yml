@@ -15,7 +15,7 @@ jobs:
   semantic-pr:
     permissions:
       contents: read
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-semantic-pr.yml@de9ddc801006e8f17d2b45dd30794ced1cafcbea # fix/semantic-pr-scope-regex
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-semantic-pr.yml@0f1515effa075090424a42f5d21551fba271dd60 # main (pre-v1.0.4)
     with:
       require-scope: false
 
