@@ -17,7 +17,7 @@ concurrency:
   cancel-in-progress: true
 
 # Release-please creates versioned releases when conventional-commit PRs are merged.
-# Enable by setting vars.RELEASE_PLEASE_ENABLED = 'true' in the repo's GitHub settings.
+# Disable by setting vars.RELEASE_PLEASE_ENABLED = 'false' in the repo's GitHub settings.
 # Versioned tags (v1.0.0, v1.1.0…) let callers pin to stable preset versions:
 #   "extends": ["github>FelipeFuhr/ffreis-platform-standards:renovate/go#v1.0.0"]
 jobs:
@@ -43,7 +43,7 @@ jobs:
       only: "both"
 
   release-please:
-    if: vars.RELEASE_PLEASE_ENABLED == 'true' && github.event_name == 'push'
+    if: vars.RELEASE_PLEASE_ENABLED != 'false' && github.event_name == 'push'
     permissions:
       contents: write
       issues: write
