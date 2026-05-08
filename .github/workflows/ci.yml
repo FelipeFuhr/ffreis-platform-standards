@@ -18,10 +18,10 @@ env:
 
 jobs:
   workflows-policy:
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-workflows-policy.yml@a02d736d25fa99fca8b4b623af9467d7afc472a4 # v1.0.3
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-workflows-policy.yml@01e2b12e992621fecf074b8a202f66044196f3bf # v1.0.4
 
   codeql-actions:
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-codeql.yml@a02d736d25fa99fca8b4b623af9467d7afc472a4 # v1.0.3
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-codeql.yml@01e2b12e992621fecf074b8a202f66044196f3bf # v1.0.4
     with:
       languages: actions
       source-root: .
@@ -31,7 +31,7 @@ jobs:
   # lefthook/*.yml + golangci/*.yml configs are valid YAML.
   validate-presets:
     name: Validate preset files
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-run-commands.yml@a02d736d25fa99fca8b4b623af9467d7afc472a4 # v1.0.3
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-run-commands.yml@01e2b12e992621fecf074b8a202f66044196f3bf # v1.0.4
     with:
       setup-python: true
       commands: |
@@ -71,6 +71,6 @@ jobs:
 
   shellcheck:
     name: Shell scripts
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-shellcheck.yml@a02d736d25fa99fca8b4b623af9467d7afc472a4 # v1.0.3
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-shellcheck.yml@01e2b12e992621fecf074b8a202f66044196f3bf # v1.0.4
     with:
       working-directory: .
