@@ -18,9 +18,11 @@ env:
 
 jobs:
   workflows-policy:
+    timeout-minutes: 15
     uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-workflows-policy.yml@01e2b12e992621fecf074b8a202f66044196f3bf # v1.0.4
 
   codeql-actions:
+    timeout-minutes: 30
     uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-codeql.yml@01e2b12e992621fecf074b8a202f66044196f3bf # v1.0.4
     with:
       languages: actions
@@ -30,6 +32,7 @@ jobs:
   # Validate that all renovate/*.json preset files are valid JSON and all
   # lefthook/*.yml + golangci/*.yml configs are valid YAML.
   validate-presets:
+    timeout-minutes: 15
     name: Validate preset files
     uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-run-commands.yml@01e2b12e992621fecf074b8a202f66044196f3bf # v1.0.4
     with:
@@ -70,6 +73,7 @@ jobs:
         "
 
   shellcheck:
+    timeout-minutes: 15
     name: Shell scripts
     uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-shellcheck.yml@01e2b12e992621fecf074b8a202f66044196f3bf # v1.0.4
     with:
