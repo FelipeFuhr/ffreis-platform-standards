@@ -114,3 +114,60 @@ and `lefthook/actionlint.yml` as the remote source.
 2. Open a PR — CI validates JSON/YAML/shell automatically
 3. Merge to main
 4. Renovate runs pick up changes fleet-wide; lefthook `remotes:` pulls on next `lefthook install`
+
+---
+
+## Workspace Essentials
+
+Quick reference for agents and new contributors. Detailed docs live in
+`FelipeFuhr/ffreis-website-inventory` → `AGENTS.md`.
+
+### Branching model
+
+| Repo type | Branches | Deploy trigger |
+|-----------|----------|----------------|
+| Website/KB content repos | `develop` + `main` | push to `develop` → dev; push to `main` → prod |
+| Tools, infra, libraries | `main` only | push to `main` (or manual) |
+
+Always create a feature branch off `develop` (content repos) or `main` (tool repos).
+Open a PR. **Never push directly to `main` or `develop`.**
+
+### Secrets checklist for new repos
+
+| Secret | Purpose | Where |
+|--------|---------|--------|
+| `CODECOV_TOKEN` | Code coverage upload | GitHub repo secrets |
+| `RELEASE_PLEASE_TOKEN` | Release automation PAT | GitHub repo secrets |
+| `CI_REPO_READ_TOKEN` | Check out private inventory / sibling repos | GitHub repo secrets |
+| `CI_DISPATCH_TOKEN` | Dispatch to `ffreis-website-deployer` (write scope) | GitHub repo secrets (source repos only) |
+| `AWS_DEPLOY_ROLE_ARN` | OIDC deploy role ARN | GitHub environment secrets (`prod`, `*-dev`) |
+| `CF_DISTRIBUTION_ID` | CloudFront distribution ID | GitHub environment secrets |
+| `S3_WEBSITE_BUCKET` | Live S3 bucket name | GitHub environment secrets |
+
+### GitHub variables checklist
+
+| Variable | Value | Where |
+|----------|-------|--------|
+| `SCORECARD_ENABLED` | `'true'` or `'false'` | Repo variables |
+| `RELEASE_PLEASE_ENABLED` | `'true'` or `'false'` | Repo variables |
+| `STALE_ENABLED` | `'true'` or `'false'` | Repo variables |
+| `BUILDS_BUCKET` | S3 builds bucket name | Environment variables (`prod`, `*-dev`) |
+
+### Local dev
+
+```bash
+make setup          # after cloning any repo; installs tooling + hooks
+```
+
+For website builds locally, use `ffreis-siteops` (NOT the deployer — that's CI only):
+```bash
+cd ffreis-siteops
+make build SITE=flemming ENV=dev
+```
+
+### Agent safety rules
+
+These rules are also in the workspace `CLAUDE.md` and apply to every session:
+- NEVER push directly to `main` or `develop` — always use a PR
+- NEVER run `terraform apply ENV=prod` without explicit user confirmation
+- When in doubt about dev vs prod, choose dev and ask
