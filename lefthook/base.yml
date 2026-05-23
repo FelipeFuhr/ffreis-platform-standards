@@ -3,7 +3,7 @@ pre-commit:
   commands:
     hygiene-merge-markers:
       run: |
-        set -euo pipefail
+        set -eu
         tmpfiles=$(mktemp)
         trap 'rm -f "$tmpfiles"' EXIT
         git diff --cached --name-only -z > "$tmpfiles"
@@ -12,7 +12,7 @@ pre-commit:
         [ -n "$bad" ] && { echo "merge markers in: $bad" >&2; exit 1; }
     hygiene-large-files:
       run: |
-        set -euo pipefail
+        set -eu
         MAX_BYTES=$((500 * 1024))
         while IFS= read -r -d '' file; do
           [ -f "$file" ] || continue
@@ -21,7 +21,7 @@ pre-commit:
         done < <(git diff --cached --name-only -z)
     hygiene-binary-files:
       run: |
-        set -euo pipefail
+        set -eu
         while IFS= read -r -d '' file; do
           [ -f "$file" ] || continue
           mime=$(file --mime-type -b "$file")
@@ -45,7 +45,7 @@ commit-msg:
   commands:
     conventional-commits:
       run: |
-        set -euo pipefail
+        set -eu
         msg=$(head -1 "{1}")
         pattern='^(feat|fix|docs|chore|refactor|test|ci|perf|style|build|revert)(\([a-z0-9-]+\))?: .{1,100}$'
         echo "$msg" | grep -qE "$pattern" || {

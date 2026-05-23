@@ -2,7 +2,7 @@ pre-commit:
   commands:
     go-mod-drift:
       run: |
-        set -euo pipefail
+        set -eu
         [ -f go.mod ] || exit 0
         tmp=$(mktemp -d)
         cp go.mod "$tmp/go.mod"
