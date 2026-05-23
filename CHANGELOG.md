@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.1.0](https://github.com/FelipeFuhr/ffreis-platform-standards/compare/v1.0.0...v1.1.0) (2026-05-23)
+
+
+### Features
+
+* add lefthook bootstrap script and hook scripts ([#9](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/9)) ([13304a2](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/13304a2737e81ea41604b8ea9656c1b0448782bf))
+* platform leveling improvements ([#8](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/8)) ([f818663](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/f8186639184060c06b524ec916a8da8ff06f835e))
+* **scripts:** add act installer and local CI runner ([#14](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/14)) ([1d2cb70](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/1d2cb70b8228d4aee82bd863ae95dcd689c8781a))
+
+
+### Bug Fixes
+
+* **lefthook:** drop pipefail from inline run blocks for sh portability ([#13](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/13)) ([0a47d0a](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/0a47d0a3e1e6479fb2eeba31adbdc5cb4529c85e))
+
 ## 1.0.0 (2026-05-05)
 
 
