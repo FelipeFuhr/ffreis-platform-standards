@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/FelipeFuhr/ffreis-platform-standards/compare/v1.2.0...v1.2.1) (2026-05-24)
+
+
+### Bug Fixes
+
+* **run-ci-local:** auto-detect rootless podman socket, clearer extras-file banner ([#22](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/22)) ([9843165](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/9843165685f53fa7aebc8ec31313e04a4fe9fbc9))
+
 ## [1.2.0](https://github.com/FelipeFuhr/ffreis-platform-standards/compare/v1.1.2...v1.2.0) (2026-05-24)
 
 
