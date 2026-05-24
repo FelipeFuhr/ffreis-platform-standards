@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/FelipeFuhr/ffreis-platform-standards/compare/v1.1.2...v1.2.0) (2026-05-24)
+
+
+### Features
+
+* **workspace:** version-track workspace-root AGENTS.md and CLAUDE.md ([#20](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/20)) ([a16b438](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/a16b438c4bcdeb84f55d753f35e879a1edbf50da))
+
 ## [1.1.2](https://github.com/FelipeFuhr/ffreis-platform-standards/compare/v1.1.1...v1.1.2) (2026-05-24)
 
 
