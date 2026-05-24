@@ -9,7 +9,10 @@ pre-commit:
         git diff --cached --name-only -z > "$tmpfiles"
         [ -s "$tmpfiles" ] || exit 0
         bad=$(xargs -0 grep -l '^<<<<<<< \|^=======$\|^>>>>>>> ' < "$tmpfiles" 2>/dev/null || true)
-        [ -n "$bad" ] && { echo "merge markers in: $bad" >&2; exit 1; }
+        if [ -n "$bad" ]; then
+          echo "merge markers in: $bad" >&2
+          exit 1
+        fi
     hygiene-large-files:
       run: |
         set -eu
@@ -25,7 +28,10 @@ pre-commit:
           [ -n "$file" ] || continue
           [ -f "$file" ] || continue
           size=$(git cat-file -s ":$file" 2>/dev/null || echo 0)
-          [ "$size" -gt "$MAX_BYTES" ] && { echo "large file ($((size / 1024)) KB): $file" >&2; exit 1; }
+          if [ "$size" -gt "$MAX_BYTES" ]; then
+            echo "large file ($((size / 1024)) KB): $file" >&2
+            exit 1
+          fi
         done < "$tmpfiles"
     hygiene-binary-files:
       run: |
