@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.2](https://github.com/FelipeFuhr/ffreis-platform-standards/compare/v1.1.1...v1.1.2) (2026-05-24)
+
+
+### Bug Fixes
+
+* **lefthook:** make hygiene-* exit 0 on the clean path ([#18](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/18)) ([aacc4aa](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/aacc4aa188654a67e148883bf427ae8ef7a52d31))
+
 ## [1.1.1](https://github.com/FelipeFuhr/ffreis-platform-standards/compare/v1.1.0...v1.1.1) (2026-05-24)
 
 
