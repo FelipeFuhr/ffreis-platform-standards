@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/FelipeFuhr/ffreis-platform-standards/compare/v1.1.0...v1.1.1) (2026-05-24)
+
+
+### Bug Fixes
+
+* **lefthook:** make hygiene-* blocks POSIX-portable ([#16](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/16)) ([f1b7171](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/f1b7171715ef25c460cf436d5fb77a6e9523de83))
+
 ## [1.1.0](https://github.com/FelipeFuhr/ffreis-platform-standards/compare/v1.0.0...v1.1.0) (2026-05-23)
 
 
