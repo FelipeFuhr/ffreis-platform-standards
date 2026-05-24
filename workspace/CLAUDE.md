@@ -155,6 +155,10 @@ When adding or reviewing any `.github/workflows/` file, enforce:
 3. No `timeout-minutes` on `uses:` caller jobs — GitHub Actions forbids it; set the timeout
    inside the reusable workflow definition instead.
 4. `if: ${{ !github.event.pull_request.draft }}` on expensive jobs in PR-triggered workflows.
+5. `permissions:` per job, least privilege. **No top-level `permissions:` block.** See
+   `platform/ffreis-platform-standards/AGENTS.md` § "Per-job permissions" for patterns.
+6. Path filters (`on.push.paths`, `on.pull_request.paths`) on workflows that only
+   need to run when specific files change. Conserves the shared CI minutes budget.
 
 ## Go test invariant
 
