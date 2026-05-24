@@ -4,11 +4,6 @@ on:
   pull_request:
     branches: [main]
 
-permissions:
-  contents: read
-  actions: read
-  security-events: write
-
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -18,9 +13,15 @@ env:
 
 jobs:
   workflows-policy:
+    permissions:
+      contents: read
     uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-workflows-policy.yml@01e2b12e992621fecf074b8a202f66044196f3bf # v1.0.4
 
   codeql-actions:
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
     uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-codeql.yml@01e2b12e992621fecf074b8a202f66044196f3bf # v1.0.4
     with:
       languages: actions
@@ -31,6 +32,8 @@ jobs:
   # lefthook/*.yml + golangci/*.yml configs are valid YAML.
   validate-presets:
     name: Validate preset files
+    permissions:
+      contents: read
     uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-run-commands.yml@01e2b12e992621fecf074b8a202f66044196f3bf # v1.0.4
     with:
       setup-python: true
@@ -71,6 +74,8 @@ jobs:
 
   shellcheck:
     name: Shell scripts
+    permissions:
+      contents: read
     uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-shellcheck.yml@01e2b12e992621fecf074b8a202f66044196f3bf # v1.0.4
     with:
       working-directory: .
