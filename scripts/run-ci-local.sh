@@ -44,8 +44,20 @@ done
 # ── preflight ──────────────────────────────────────────────────────────────
 command -v act >/dev/null 2>&1 \
   || die "act not installed. See https://nektosact.com/installation"
-docker info >/dev/null 2>&1 \
-  || die "Docker daemon not reachable. Start Docker and retry."
+
+# Auto-route to rootless podman if the default docker socket isn't ours
+# but the rootless podman socket is. Common on Linux machines where
+# /var/run/docker.sock symlinks to root podman that the user can't reach.
+# (`docker info` is unreliable here — podman-docker emulation returns 0
+# even when actual container operations would fail with EACCES, so we
+# check socket-file accessibility directly.)
+if [[ -z "${DOCKER_HOST:-}" ]]; then
+  rootless_sock="/run/user/${UID:-$(id -u)}/podman/podman.sock"
+  if [[ ! -w /var/run/docker.sock && -S "$rootless_sock" && -w "$rootless_sock" ]]; then
+    export DOCKER_HOST="unix://$rootless_sock"
+    info "Using rootless podman socket: $DOCKER_HOST"
+  fi
+fi
 git rev-parse --show-toplevel >/dev/null 2>&1 \
   || die "Not inside a git repo. cd into a repo with .github/workflows/ first."
 
@@ -112,7 +124,9 @@ fi
 
 # Extra secrets from user-managed env file.
 extra_env="$HOME/.config/ffreis/ci-local.env"
+extra_env_exists=no
 if [[ -r "$extra_env" ]]; then
+  extra_env_exists=yes
   while IFS= read -r line; do
     [[ -z "$line" || "$line" == \#* ]] && continue
     [[ "$line" == *=* ]] || { warn "skipping non-KEY=VALUE line in $extra_env: $line"; continue; }
@@ -127,7 +141,13 @@ info "Mode: $mode"
 info "Detected credentials: AWS=$have_aws GH=$have_gh EXTRA_ENV=$have_extra"
 [[ "$have_aws"   == no ]] && info "  → AWS jobs may report 'credential-missing'. Set AWS_PROFILE or export AWS_* to enable."
 [[ "$have_gh"    == no ]] && info "  → GitHub-API jobs may fail. Run 'gh auth login' to enable."
-[[ "$have_extra" == no ]] && info "  → No $extra_env. Copy scripts/ci-local.env.example there to enable extra secrets."
+if [[ "$have_extra" == no ]]; then
+  if [[ "$extra_env_exists" == no ]]; then
+    info "  → No $extra_env. Copy scripts/ci-local.env.example there to enable extra secrets."
+  else
+    info "  → $extra_env exists but has no KEY=VALUE entries (all commented)."
+  fi
+fi
 
 # ── invocation ─────────────────────────────────────────────────────────────
 cd "$repo_root"
