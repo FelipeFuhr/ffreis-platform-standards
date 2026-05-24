@@ -236,6 +236,110 @@ copies as a snapshot.)
 3. Merge to main
 4. Renovate runs pick up changes fleet-wide; lefthook `remotes:` pulls on next `lefthook install`
 
+## GitHub Actions CI standards
+
+All `.github/workflows/*.yml` files in the fleet follow these rules. Apply to every
+new workflow and every edit to an existing one.
+
+### Required structural elements
+
+| Element | Rule | Notes |
+|---|---|---|
+| `concurrency.cancel-in-progress: true` | Every push/PR workflow | Prevents stale runs racing with new commits |
+| `timeout-minutes` per job | Every **direct** job | 15 min for quick checks, 30 min for builds/tests; never omit |
+| `timeout-minutes` on `uses:` caller jobs | **Forbidden** (GitHub rejects) | Set the timeout inside the reusable workflow's job instead |
+| `if: ${{ !github.event.pull_request.draft }}` | Every expensive job in PR-triggered workflows | Saves CI minutes on WIP branches |
+| `permissions:` per job (least privilege) | Required, **no workflow-level `permissions:`** | See "Per-job permissions" below |
+| Path filters on push/PR triggers | Required where applicable | Limit triggers to files that actually affect the workflow |
+
+### Per-job permissions
+
+GitHub's `permissions:` block grants scopes to the `GITHUB_TOKEN`. The default if omitted
+varies by repo settings — never rely on the default.
+
+Two rules:
+
+1. **No top-level `permissions:` block.** Top-level grants apply to every job, which
+   over-grants for jobs that don't need write access. Declare per job instead.
+2. **Each job declares exactly what it needs**, read-only by default. Write scopes
+   (e.g. `contents: write`, `pull-requests: write`) only on the specific job that
+   performs the write.
+
+Common patterns:
+
+```yaml
+jobs:
+  test:
+    timeout-minutes: 15
+    permissions:
+      contents: read           # checkout only
+    runs-on: ubuntu-latest
+    steps: ...
+
+  codeql:
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write   # upload SARIF
+      actions: read
+    runs-on: ubuntu-latest
+    steps: ...
+
+  release:
+    timeout-minutes: 15
+    permissions:
+      contents: write          # create tag/release
+      pull-requests: write     # release-please PRs
+    runs-on: ubuntu-latest
+    steps: ...
+```
+
+For jobs that only call a reusable workflow (`uses:`):
+
+```yaml
+jobs:
+  call-go-test:
+    permissions:
+      contents: read
+    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-test.yml@v1
+```
+
+The caller's per-job permissions become the `GITHUB_TOKEN` scope inside the reusable
+workflow. Reusable workflows in this fleet **also** declare per-job permissions
+internally as defense-in-depth — callers should still pass the minimal set explicitly.
+
+### Path filters
+
+Workflows that only need to run when specific files change should declare path filters
+on `push:` and `pull_request:`. This conserves the shared 71-repo CI minutes budget.
+
+```yaml
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/**'
+      - 'Makefile'
+      - 'lefthook.yml'
+  pull_request:
+    paths:
+      - '.github/workflows/**'
+      - 'Makefile'
+      - 'lefthook.yml'
+```
+
+Workflows that must always run (release, scheduled drift, scorecards, etc.) keep no
+path filter. If a workflow has a `merge_group:` trigger, mirror the same paths there.
+
+### Reusable workflows (devops/ffreis-workflows-*)
+
+The same standards apply to reusable workflows defined in the `devops/` repos:
+
+- Per-job `timeout-minutes` and `permissions:` are still required (defense-in-depth —
+  callers shouldn't need to over-grant just because a reusable workflow under-declares).
+- Reusable workflow definitions use `on: workflow_call:` so path filters don't apply,
+  but the self-test/CI workflows that live alongside them do follow all the rules above.
+
 ---
 
 ## Workspace Essentials
