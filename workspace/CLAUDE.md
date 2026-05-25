@@ -179,6 +179,76 @@ there once `captureStdout` is made concurrency-safe.
 - Fleet-level changes go in `ffreis-website-inventory/AGENTS.md`.
 - Subagent prompts must include the relevant `AGENTS.md`; update it there too if you learned something new.
 
+## Tagging — single source of truth
+
+Every AWS resource MUST get its tags from
+[`platform/ffreis-platform-terraform-modules/modules/tagging` v2.0.0+](platform/ffreis-platform-terraform-modules/modules/tagging).
+Do not invent a new `default_tags` block; do not hand-roll per-resource tag maps. The module
+enumerates the required schema (`Project`, `Environment`, `Stack`, `Layer`, `CostCenter`,
+`Lifecycle`, `FixedCostTier`, `Domain`, …) and validates the enums so Cost Explorer queries
+stay consistent across the fleet.
+
+Pattern:
+
+```hcl
+module "tags" {
+  source = "git::https://github.com/FelipeFuhr/ffreis-platform-terraform-modules.git//modules/tagging?ref=v2.0.0"
+
+  project          = "flemming"
+  environment      = var.environment
+  stack            = "flemming"
+  layer            = "flemming-infra"
+  terraform_repo   = "ffreis-flemming-infra"
+  terraform_root   = "infra"
+  cost_center      = "flemming"                  # per-product, not "engineering"
+  domain           = "flemming.com.br"
+  lifecycle_state  = var.environment == "prod" ? "production" : "development"
+  fixed_cost_tier  = "low"
+}
+
+provider "aws" {
+  default_tags { tags = module.tags.tags }
+}
+```
+
+Per-resource override: `tags = merge(module.tags.tags, { Lifecycle = "experiment" })`.
+
+The `CostCenter` value MUST be per-product (`flemming`, `petlook`, `ffreis-website`,
+`platform`, `dashboard`, `ai-ask`). A single shared value like `engineering` defeats the
+purpose — Cost Explorer can't split spend per product.
+
+## Fixed-cost discipline
+
+Default principle: every AWS resource should be pay-per-request. Fixed monthly costs require
+explicit justification.
+
+**Before merging any PR that adds an `aws_*` resource, author (or agent) must:**
+
+1. Quote the resource's fixed monthly cost in the PR body or a comment in the `.tf` file. If
+   zero, say `$0 — pay-per-request only`.
+2. Set the `FixedCostTier` tag honestly (`none` / `low` / `medium` / `high`).
+3. If `medium` or `high`: justify why the pay-per-request alternative isn't suitable, and
+   check whether an existing resource can be reused or shared.
+
+**Known fixed-cost services** (non-exhaustive — extend on first use):
+
+| Service | Fixed cost | Cheaper alternative |
+|---|---|---|
+| `aws_wafv2_web_acl` | $5/mo per ACL + $1/mo per rule | CloudFront geo/CIDR restrictions; share one ACL across distributions |
+| `aws_cloudwatch_metric_alarm` | $0.10/mo each | Use `for_each` over a single set, not copy-paste |
+| `aws_kms_key` | $1/mo each | AES256 / AWS-owned key — see memory file `feedback_no_kms.md` |
+| `aws_nat_gateway` | $32/mo each + data | VPC endpoints; NAT instance in non-prod |
+| `aws_route53_zone` | $0.50/mo each | Reuse an existing zone with subdomains |
+| `aws_lb` (ALB) | $16/mo each | API Gateway / CloudFront |
+| `aws_db_instance`, `aws_elasticache_cluster`, Lambda provisioned concurrency | Case-by-case | DDB on-demand; Aurora Serverless v2 scales to zero |
+
+**Soft cap**: any single PR adding > $5/mo of fixed cost must list the cost in the PR title
+(e.g. `[+$10/mo] add WAF ACL for petlook`).
+
+The four infra repos (`petlook-infra`, `ffreis-website-infra`, `ffreis-platform-shared-infra`,
+`ffreis-flemming-infra`) run `infracost` on every PR — the comment posted by the bot is the
+authoritative $/month delta. Read it before approving merge.
+
 ## AWS Access
 
 Static credentials live in `~/.aws/credentials` (profile `ffreis-platform-base`) and
