@@ -55,12 +55,12 @@ every tool call. No exceptions.
 
    For an **existing** repo that was hand-rolled (no `.copier-answers.yaml`),
    backfill one so future `copier update` runs work and so
-   `quality-kit/scripts/check-repo-parity.sh` can report drift against the
+   `platform/ffreis-platform-standards/scripts/check-repo-parity.sh` can report drift against the
    template.
 
 ## Auditing existing repos for template parity
 
-`bash quality-kit/scripts/check-repo-parity.sh <repo-dir>` reports template
+`bash platform/ffreis-platform-standards/scripts/check-repo-parity.sh <repo-dir>` reports template
 drift for any repo with a `.copier-answers.yaml`. Files present in the
 template but missing from the repo print as `MISSING:`; the script exits
 non-zero if any are missing so it can be wired into CI or a workspace-level

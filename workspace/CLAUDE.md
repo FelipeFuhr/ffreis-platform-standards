@@ -86,7 +86,7 @@ every repo, and every tool call. Follow them without exception.
    anti-pattern (the dashboard-infra 10-PR retrofit, 2026-05-26, was caused
    by this miss). For existing repos without `.copier-answers.yaml`,
    backfill one so `copier update` works and
-   `quality-kit/scripts/check-repo-parity.sh <repo>` can audit drift.
+   `platform/ffreis-platform-standards/scripts/check-repo-parity.sh <repo>` can audit drift.
    Full agent-agnostic version of this rule lives in [AGENTS.md](AGENTS.md).
 
 ## Disk + memory safety for heavy builds
