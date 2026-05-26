@@ -76,6 +76,19 @@ every repo, and every tool call. Follow them without exception.
    `config/ffreis.local.yaml`) are local dev configs, not committed to any repo.
    They contain local paths and may reference local binaries.
 
+6. **New repo? Use Copier from `platform/ffreis-project-templates/` first.**
+   Before `git init` or `mkdir <new-repo>`, check
+   `platform/ffreis-project-templates/templates/` for a matching template:
+   `terraform-infra`, `go-cli`, `rust-lambda`, `python-service`,
+   `knowledge-base`, `github-actions-lib`. If one fits, scaffold via
+   `copier copy gh:FelipeFuhr/ffreis-project-templates --subdirectory templates/<name> <target-dir>`.
+   Hand-rolling a repo without checking the templates is a maturity-debt
+   anti-pattern (the dashboard-infra 10-PR retrofit, 2026-05-26, was caused
+   by this miss). For existing repos without `.copier-answers.yaml`,
+   backfill one so `copier update` works and
+   `platform/ffreis-platform-standards/scripts/check-repo-parity.sh <repo>` can audit drift.
+   Full agent-agnostic version of this rule lives in [AGENTS.md](AGENTS.md).
+
 ## Disk + memory safety for heavy builds
 
 `/media/ffreis/second` is the projects volume and is shared across all Rust,
