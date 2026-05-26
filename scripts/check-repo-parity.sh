@@ -150,7 +150,7 @@ fi
 TEMPLATE_DIR="$TEMPLATES_DIR/$TEMPLATE_NAME/template"
 if [[ ! -d "$TEMPLATE_DIR" ]]; then
     echo "$PROGNAME: template directory not found: $TEMPLATE_DIR" >&2
-    echo "  Available templates: $(ls "$TEMPLATES_DIR" 2>/dev/null | tr '\n' ' ')" >&2
+    echo "  Available templates: $(find "$TEMPLATES_DIR" -mindepth 1 -maxdepth 1 -type d -printf '%f ' 2>/dev/null)" >&2
     exit 3
 fi
 
