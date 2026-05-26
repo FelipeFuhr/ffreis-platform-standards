@@ -37,6 +37,34 @@ every tool call. No exceptions.
    a specific repo, include that repo's `AGENTS.md` in the prompt.
 4. **`old/` and `_orphaned/` are archived.** Never modify them.
 5. **`config/` is git-ignored workspace config.** Local dev only.
+6. **New repo? Use Copier from `platform/ffreis-project-templates/` first.**
+   Before `git init` or `mkdir <new-repo>`, check
+   `platform/ffreis-project-templates/templates/` for a matching template
+   (current options: `terraform-infra`, `go-cli`, `rust-lambda`,
+   `python-service`, `knowledge-base`, `github-actions-lib`). If one fits,
+   scaffold via:
+   ```bash
+   copier copy gh:FelipeFuhr/ffreis-project-templates \
+     --subdirectory templates/<name> <target-dir>
+   ```
+   Hand-rolling a repo without checking the templates is a maturity-debt
+   anti-pattern (see the dashboard-infra 10-PR retrofit, 2026-05-26 — every
+   one of Makefile, CI workflows, lefthook, renovate, release-please, Go CLI,
+   IAM roles, and the parity docs themselves had to be added after the fact
+   because the original `mkdir` skipped the template).
+
+   For an **existing** repo that was hand-rolled (no `.copier-answers.yaml`),
+   backfill one so future `copier update` runs work and so
+   `quality-kit/scripts/check-repo-parity.sh` can report drift against the
+   template.
+
+## Auditing existing repos for template parity
+
+`bash quality-kit/scripts/check-repo-parity.sh <repo-dir>` reports template
+drift for any repo with a `.copier-answers.yaml`. Files present in the
+template but missing from the repo print as `MISSING:`; the script exits
+non-zero if any are missing so it can be wired into CI or a workspace-level
+audit. Run it ad-hoc when investigating "does this repo match the template?"
 
 ## Pre-commit validation (cheap local CI)
 
