@@ -1,5 +1,10 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["github>FelipeFuhr/ffreis-platform-standards:renovate/default"],
-  "enabledManagers": ["github-actions"]
+  "extends": [
+    "github>FelipeFuhr/ffreis-platform-standards:renovate/default"
+  ],
+  "enabledManagers": [
+    "github-actions",
+    "custom.regex"
+  ]
 }

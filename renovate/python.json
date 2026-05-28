@@ -1,9 +1,32 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["github>FelipeFuhr/ffreis-platform-standards:renovate/default"],
-  "enabledManagers": ["uv", "dockerfile", "github-actions"],
+  "extends": [
+    "github>FelipeFuhr/ffreis-platform-standards:renovate/default"
+  ],
+  "enabledManagers": [
+    "uv",
+    "dockerfile",
+    "github-actions",
+    "custom.regex"
+  ],
   "packageRules": [
-    { "matchManagers": ["uv"],         "groupName": "Python dependencies", "labels": ["dependencies"] },
-    { "matchManagers": ["dockerfile"], "groupName": "Docker base images",  "labels": ["dependencies"] }
+    {
+      "matchManagers": [
+        "uv"
+      ],
+      "groupName": "Python dependencies",
+      "labels": [
+        "dependencies"
+      ]
+    },
+    {
+      "matchManagers": [
+        "dockerfile"
+      ],
+      "groupName": "Docker base images",
+      "labels": [
+        "dependencies"
+      ]
+    }
   ]
 }
