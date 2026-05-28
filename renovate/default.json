@@ -17,6 +17,26 @@
       "matchUpdateTypes": ["minor", "patch", "digest"],
       "automerge": true,
       "automergeType": "pr"
+    },
+    {
+      "matchDepNames": ["FelipeFuhr/ffreis-platform-standards"],
+      "groupName": "platform-standards SHA pins",
+      "labels": ["dependencies"],
+      "matchUpdateTypes": ["minor", "patch", "digest"],
+      "automerge": true,
+      "automergeType": "pr"
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "fileMatch": ["(^|/)Makefile(\\.jinja)?$", "(^|/)lefthook\\.yml$"],
+      "matchStrings": [
+        "PLATFORM_STANDARDS_SHA\\s*[?:]?=\\s*(?<currentDigest>[a-f0-9]{40})\\s*#\\s*(?<currentValue>v\\d+\\.\\d+\\.\\d+)",
+        "git_url:\\s*https://github\\.com/FelipeFuhr/ffreis-platform-standards\\s*\\n\\s*ref:\\s*(?<currentDigest>[a-f0-9]{40})\\s*#\\s*(?<currentValue>v\\d+\\.\\d+\\.\\d+)"
+      ],
+      "depNameTemplate": "FelipeFuhr/ffreis-platform-standards",
+      "datasourceTemplate": "github-tags"
     }
   ]
 }
