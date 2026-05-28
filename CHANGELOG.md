@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.0](https://github.com/FelipeFuhr/ffreis-platform-standards/compare/v1.2.1...v1.3.0) (2026-05-28)
+
+
+### Features
+
+* **renovate:** track PLATFORM_STANDARDS_SHA in Makefiles + lefthook.yml ([#29](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/29)) ([48a0eea](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/48a0eea48f756ff84e47c8d2cd67a78462d4db03))
+
 ## [1.2.1](https://github.com/FelipeFuhr/ffreis-platform-standards/compare/v1.2.0...v1.2.1) (2026-05-24)
 
 
