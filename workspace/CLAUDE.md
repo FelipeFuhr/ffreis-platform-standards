@@ -27,7 +27,7 @@ Each subdirectory is an independent git repo.
 | `local-development/` | Vagrant-based local Kubernetes environments |
 | `old/` | Archived repos — do not modify |
 | `config/` | Workspace-level local dev configs (git-ignored, not in any repo) |
-| `quality-kit/` | Shared workspace tooling (hooks, templates) — not a git repo |
+| `quality-kit/` | Workspace tooling (Claude Code hooks, bash linting, bats tests, drift audit) — private repo: `FelipeFuhr/ffreis-quality-kit`. Consumed in place; paths are hardcoded against this location. |
 | `_orphaned/` | **Ignore.** Abandoned, duplicate, and leftover items (see `_orphaned/AGENTS.md`) |
 
 ## Agent Safety Rules
@@ -123,6 +123,163 @@ podman system prune -af                     # container cache
 Never run a `cargo lambda build` or `cargo build --release` directly (bypassing
 make) without first calling `check-disk` and `check-mem` — a single such build
 can swing free space by 15+ GB and OOM the desktop session.
+
+## Parallel session safety
+
+Multiple Claude sessions often run against this workspace simultaneously.
+Four workspace hooks (`.claude/settings.json`) cooperate to keep sessions
+from clobbering each other's work:
+
+- `SessionStart` runs `check-workspace-state.sh` once on session boot — gives
+  Claude a one-shot map of which repos have pending local work right now.
+- `PreToolUse` (Edit/Write/MultiEdit/NotebookEdit) runs `check-session-state.sh`
+  the first time you touch each repo per session. Blocks (exit 2) on
+  `CONFLICT-RISK`; warns (exit 0 + stderr) on `DIRTY`.
+- `PreToolUse` (Task) warns when an Agent tool call omits `isolation: "worktree"`
+  for a write-capable subagent.
+- `PostToolUse` (Edit/Write/MultiEdit/NotebookEdit/Bash) maintains
+  `/tmp/claude-sessions/${CLAUDE_SESSION_ID}.json` recording this session's
+  edits and created branches. The preflight uses this manifest to filter
+  out this session's own work, so DIRTY/CONFLICT-RISK reflects only sibling
+  sessions.
+- `Stop` runs at session end and reports any leftover uncommitted/unpushed
+  work in repos this session touched.
+
+All hooks audit to `~/.claude/hook-events.log` for retrospective debugging.
+
+You can run any of these manually:
+```bash
+bash quality-kit/scripts/check-session-state.sh <repo-path>      # one repo
+bash quality-kit/scripts/check-session-state.sh --brief <repo>   # compact
+bash quality-kit/scripts/check-workspace-state.sh                # all repos
+```
+
+If a hook blocks a tool call with `STATE: CONFLICT-RISK`, surface the findings
+to the user verbatim and get explicit confirmation before retrying — do not
+work around it.
+
+Rules every session must follow, hook or no hook:
+
+1. **Never reuse a branch you didn't create this session.** Before
+   `git checkout -b <name>`, run `git rev-parse --verify <name>` to check for
+   collision. If the branch exists, append `-2`, `-3`, … until unique. Keep
+   the existing workspace prefixes (`feat/`, `fix/`, `chore/`, `docs/`,
+   `ffreis/00-*`) — do not invent new ones.
+
+2. **Never `git checkout <other-branch>` when `git status` is dirty.** That
+   work belongs to a sibling session. Stash, reset, and force-checkout are
+   forbidden in this state without explicit user confirmation in the current
+   session ("go ahead" from earlier does not count — ask again).
+
+3. **Forbidden without explicit per-session user confirmation:**
+   `git stash` (any form), `git reset --hard`, `git checkout -- <path>`,
+   `git restore --source=...`, `git clean -fd`, `git branch -D`,
+   `git rebase` of a branch with unpushed commits you didn't create,
+   `git worktree remove --force`, force-push (any form).
+
+4. **Spawning subagents that will edit files: pass `isolation: "worktree"`
+   on the Agent tool call.** This runs the subagent in its own git worktree
+   so it cannot collide with the parent session or sibling sessions.
+   Read-only subagents (Explore, Plan, research) may run in-place.
+
+5. **Commit early, push when CI-green.** Uncommitted work that lingers past
+   one task is the failure mode this section prevents — the shortest path to
+   safety is a clean tree between tasks.
+
+6. **Cross-session "I'm working on this" signal: open a draft PR.** For any
+   non-trivial multi-step work, after the first commit run:
+   ```bash
+   gh pr create --draft --title "wip: <topic>" --body "Session $CLAUDE_SESSION_ID"
+   ```
+   Other sessions detect active work via:
+   ```bash
+   gh pr list --author @me --state open --json headRefName,title,isDraft
+   ```
+   This is the canonical "in flight" signal across sessions, terminals, and
+   machines — not just one local filesystem.
+
+If `check-session-state.sh` reports `sibling-branches` with unpushed commits,
+those branches are likely in-progress work from another session — never check
+them out, rebase them, or delete them.
+
+### Preferred CLI shortcuts (token-efficient alternatives to ad-hoc git)
+
+Route investigative tasks through these compact, structured commands instead
+of running raw git/CLI sequences. Each one returns less output than the
+equivalent free-form chain and is the canonical entry point for that task:
+
+| Instead of … | Use … |
+|---|---|
+| `git status; git stash list; git log @{u}..` | `bash quality-kit/scripts/check-session-state.sh <repo>` |
+| Browsing every repo to find pending work | `bash quality-kit/scripts/check-workspace-state.sh` |
+| `git fetch && git diff` to inspect a PR | `gh pr view <N> --json title,body,files` |
+| `git diff origin/main...feat/foo` | `gh pr diff <N>` |
+| Opening the Actions tab in a browser | `gh run list --workflow=ci.yml --limit 3` |
+| Chasing per-repo lint/test invocations | `make ci` (or `make lint && make test`) |
+| `git log -p` to read recent commit messages | `git log --oneline -20` |
+
+### Convention-drift audit
+
+Conventions, scripts, and hooks in this section rot when underlying code
+moves or disappears. Run the audit on demand to catch broken references
+before they bite:
+
+```bash
+make -C quality-kit ci                # lint + test + audit (the full gate)
+make -C quality-kit audit             # docs + hooks + memory drift report
+make -C quality-kit lint              # shellcheck (+ shfmt advisory) on scripts/
+make -C quality-kit test              # bats test suite for hook scripts
+```
+
+`audit-conventions.sh` checks four things: (1) every `quality-kit/...` or
+`platform/.../scripts/...` reference in `CLAUDE.md` and `AGENTS.md` resolves
+to an executable file; (2) every hook command in `.claude/settings.json`
+points at an existing script, and every configured hook type has fired
+within the last 30 days; (3) every absolute path mentioned in
+`~/.claude/projects/-media-ffreis-second-projects/memory/` still exists;
+(4) `shellcheck` / `shfmt` pass on `quality-kit/scripts/*.sh` (skipped if
+those binaries aren't installed). Exit 1 when any [FAIL] is reported, so it
+can be wired into CI or a scheduled `/schedule` weekly run.
+
+### Custom workspace subagents
+
+Three specialized review agents live in `.claude/agents/` (versioned in the
+private `FelipeFuhr/ffreis-claude-config` repo; `.claude/settings.json` and
+permission ACLs are kept local — never committed). Spawn them via the `Agent`
+tool with the matching `subagent_type`:
+
+- **`terraform-reviewer`** — enforces module pinning, OIDC trust patterns,
+  S3 double-policy traps, no-KMS policy, env safety. Use on any
+  `platform/*-infra/` PR.
+- **`inventory-validator`** — validates `ffreis-website-inventory/inventory/*.yaml`
+  against the deployer/compiler contract. Use before any inventory PR merge.
+- **`rust-lambda-reviewer`** — enforces ports-and-adapters, shared-library
+  reuse, DDB-not-SSM secrets, per-item fan-out loops, disk/mem safety.
+  Use on any Rust Lambda PR.
+
+These agents already know the workspace's gotchas (recorded in auto-memory)
+so you don't have to re-explain context each session.
+
+### MCP servers
+
+A `.mcp.json` at the workspace root registers MCP (Model Context Protocol)
+servers Claude can call as native tools, replacing CLI-output parsing with
+structured JSON calls.
+
+- **`github`** (configured) — replaces most `gh` CLI calls with structured
+  tool calls (issues, PRs, files, search). Activate per shell:
+  ```bash
+  export GITHUB_PERSONAL_ACCESS_TOKEN="$(gh auth token)"
+  ```
+  Then start `claude` from this workspace and the `github` tools become
+  available without any other setup. First invocation triggers `npx` to
+  fetch `@modelcontextprotocol/server-github`.
+
+When `gh` CLI use becomes habitual in a session, prefer the MCP equivalents —
+they return JSON Claude can process directly instead of human-formatted output
+that costs 5-10x more tokens to parse.
+
+Agent-agnostic version of this guidance lives in [AGENTS.md](AGENTS.md).
 
 ## Pre-commit validation
 
