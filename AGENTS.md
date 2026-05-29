@@ -345,7 +345,7 @@ The same standards apply to reusable workflows defined in the `devops/` repos:
 ## Workspace Essentials
 
 Quick reference for agents and new contributors. Detailed docs live in
-`FelipeFuhr/ffreis-website-inventory` → `AGENTS.md`.
+the fleet inventory repo → `AGENTS.md`.
 
 ### Branching model
 
