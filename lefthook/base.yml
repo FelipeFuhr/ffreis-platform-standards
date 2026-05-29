@@ -60,6 +60,32 @@ pre-commit:
           echo "hint: source files changed — check if AGENTS.md needs updating" >&2
         fi
         exit 0
+    actionlint-workflows:
+      # Lints staged .github/workflows/*.yml/*.yaml with actionlint. Catches
+      # the codeql-orphaned-SHA class of errors at commit time (see
+      # project_codeql_action_orphaned_sha memory) instead of in CI minutes.
+      # Skips silently when actionlint isn't installed locally.
+      run: |
+        set -eu
+        command -v actionlint >/dev/null 2>&1 || exit 0
+        wf=$(git diff --cached --name-only -z \
+               | tr '\0' '\n' \
+               | grep -E '^\.github/workflows/.*\.(yml|yaml)$' || true)
+        [ -z "$wf" ] && exit 0
+        echo "$wf" | xargs -r actionlint
+    hadolint-dockerfiles:
+      # Lints staged Dockerfile* with hadolint. Catches a dozen common
+      # security/correctness issues (latest tags, apt-get without --no-install-
+      # recommends, USER-less containers, ADD over COPY) before they ship.
+      # Skips silently when hadolint isn't installed.
+      run: |
+        set -eu
+        command -v hadolint >/dev/null 2>&1 || exit 0
+        df=$(git diff --cached --name-only -z \
+               | tr '\0' '\n' \
+               | grep -E '(^|/)Dockerfile([.-].*)?$' || true)
+        [ -z "$df" ] && exit 0
+        echo "$df" | xargs -r hadolint
 
 commit-msg:
   commands:

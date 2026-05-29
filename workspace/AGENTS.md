@@ -66,6 +66,104 @@ template but missing from the repo print as `MISSING:`; the script exits
 non-zero if any are missing so it can be wired into CI or a workspace-level
 audit. Run it ad-hoc when investigating "does this repo match the template?"
 
+## Parallel session safety
+
+Multiple AI agent sessions often run against this workspace in parallel and
+frequently touch the same repos. Without coordination, one session's
+uncommitted work, stashes, or unpushed commits get clobbered when another
+runs `git checkout`, `git stash`, or `git reset`. The workspace preflight
+script reports git state so any agent can detect sibling work before acting:
+
+```bash
+bash quality-kit/scripts/check-session-state.sh <repo-path>
+```
+
+Run it once per repo at the start of any session that will edit files in that
+repo. Exit code `2` (`STATE: CONFLICT-RISK`) means another session likely has
+work here — surface the report to the user and get explicit confirmation
+before any mutating tool call.
+
+Rules every session must follow:
+
+1. **Never reuse a branch you didn't create this session.** Before
+   `git checkout -b <name>`, run `git rev-parse --verify <name>` to check for
+   collision. If the branch exists, append `-2`, `-3`, … until unique. Use
+   workspace prefixes (`feat/`, `fix/`, `chore/`, `docs/`, `ffreis/00-*`).
+
+2. **Never `git checkout <other-branch>` when `git status` is dirty.** That
+   work belongs to a sibling session. Stash, reset, and force-checkout are
+   forbidden in this state without explicit user confirmation in the current
+   session.
+
+3. **Forbidden without explicit per-session user confirmation:**
+   `git stash` (any form), `git reset --hard`, `git checkout -- <path>`,
+   `git restore --source=...`, `git clean -fd`, `git branch -D`,
+   `git rebase` of a branch with unpushed commits you didn't create,
+   `git worktree remove --force`, force-push (any form).
+
+4. **Subagents that will edit files should run in an isolated git worktree**
+   (`git worktree add ../<repo>.wt/<topic> -b <branch>`) when the agent
+   harness supports it. Read-only subagents may run in-place.
+
+5. **Commit early, push when CI-green.** Uncommitted work that lingers past
+   one task is the failure mode this section prevents — the shortest path
+   to safety is a clean tree between tasks.
+
+6. **Cross-session "I'm working on this" signal: open a draft PR.** For any
+   non-trivial multi-step work, after the first commit run:
+   ```bash
+   gh pr create --draft --title "wip: <topic>" --body "Session $SESSION_ID"
+   ```
+   Other sessions detect active work via:
+   ```bash
+   gh pr list --author @me --state open --json headRefName,title,isDraft
+   ```
+   This is the canonical "in flight" signal across sessions, terminals, and
+   machines — not just one local filesystem.
+
+If the preflight reports `sibling-branches` with unpushed commits, those
+branches are likely in-progress work from another session — never check them
+out, rebase them, or delete them.
+
+### Preferred CLI shortcuts (token-efficient alternatives to ad-hoc git)
+
+Route investigative tasks through these compact, structured commands instead
+of running raw git/CLI sequences:
+
+| Instead of … | Use … |
+|---|---|
+| `git status; git stash list; git log @{u}..` | `bash quality-kit/scripts/check-session-state.sh <repo>` |
+| Browsing every repo to find pending work | `bash quality-kit/scripts/check-workspace-state.sh` |
+| `git fetch && git diff` to inspect a PR | `gh pr view <N> --json title,body,files` |
+| `git diff origin/main...feat/foo` | `gh pr diff <N>` |
+| Opening the Actions tab in a browser | `gh run list --workflow=ci.yml --limit 3` |
+| Chasing per-repo lint/test invocations | `make ci` (or `make lint && make test`) |
+| `git log -p` to read recent commit messages | `git log --oneline -20` |
+
+### Convention-drift audit
+
+Conventions and tooling rot silently when underlying code moves. Run the
+workspace audit on demand to catch broken references before they bite:
+
+```bash
+make -C quality-kit ci          # lint + test + audit (the full gate)
+make -C quality-kit audit       # docs + hooks + memory drift report
+make -C quality-kit lint        # shellcheck (+ shfmt advisory) on scripts/
+make -C quality-kit test        # bats test suite for hook scripts
+```
+
+`audit-conventions.sh` validates: (1) every script reference in `CLAUDE.md`
+and `AGENTS.md` resolves to an executable file; (2) every hook command in
+`.claude/settings.json` points at an existing script and has fired within
+the last 30 days; (3) every absolute path in agent auto-memory still exists;
+(4) shellcheck/shfmt pass on `quality-kit/scripts/*.sh`. Exit 1 on any FAIL.
+
+`shellcheck`, `shfmt`, and `bats` skip gracefully when not installed (`apt-get
+install shellcheck shfmt bats` to enable). The `actionlint` and `hadolint`
+hooks in `platform/ffreis-platform-standards/lefthook/base.yml` also skip
+silently when those binaries aren't present, so devs without them get
+working pre-commit hooks and CI catches what slipped through.
+
 ## Pre-commit validation (cheap local CI)
 
 GitHub Actions minutes are finite and shared across 71+ repos. Before
