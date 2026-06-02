@@ -248,9 +248,50 @@ new workflow and every edit to an existing one.
 | `concurrency.cancel-in-progress: true` | Every push/PR workflow | Prevents stale runs racing with new commits |
 | `timeout-minutes` per job | Every **direct** job | 15 min for quick checks, 30 min for builds/tests; never omit |
 | `timeout-minutes` on `uses:` caller jobs | **Forbidden** (GitHub rejects) | Set the timeout inside the reusable workflow's job instead |
-| `if: ${{ !github.event.pull_request.draft }}` | Every expensive job in PR-triggered workflows | Saves CI minutes on WIP branches |
+| Draft gate on **every** PR job (not just expensive ones) | `if: ${{ github.event_name != 'pull_request' \|\| github.event.pull_request.draft == false }}` — or call a fleet reusable workflow, which carries the gate | Drafts run ~no CI; see "Draft gating" below |
+| `on.pull_request.types: [opened, synchronize, reopened, ready_for_review]` | Every PR-triggered workflow | So promoting a draft to ready fires CI natively (the bare default omits `ready_for_review`) |
 | `permissions:` per job (least privilege) | Required, **no workflow-level `permissions:`** | See "Per-job permissions" below |
 | Path filters on push/PR triggers | Required where applicable | Limit triggers to files that actually affect the workflow |
+
+### Draft gating (no CI on draft)
+
+Draft PRs must run ~no CI; full CI runs only when a PR is **ready for review** and on
+**push to `main`/`develop`**. Enforced by `general-workflows-policy.yml` (fleet) and
+`quality-kit/scripts/audit-ci-standards.sh` (local).
+
+Two required pieces on every PR-triggered workflow:
+
+1. **Trigger** — list `ready_for_review` so promotion fires CI:
+   ```yaml
+   on:
+     pull_request:
+       types: [opened, synchronize, reopened, ready_for_review]
+   ```
+   Adding an explicit `types:` replaces the default set, so you MUST re-list
+   `opened, synchronize, reopened` alongside `ready_for_review`.
+
+2. **Job guard** — every PR job either calls a fleet reusable workflow (which carries the
+   gate) or guards itself:
+   ```yaml
+   jobs:
+     lint:
+       if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
+   ```
+   On `push` the guard short-circuits to true (no draft concept on push), so push CI is
+   unaffected.
+
+**`needs:` cascade:** put the guard on the **root** job (the one with no `needs:`). When a
+gated job skips on a draft, downstream jobs that `need:` it skip too (the default
+success requirement) — so guarding the root skips the whole chain. Do **not** add
+`if: always()`; that defeats the skip.
+
+**Tuning knobs** (default = skip on draft): reusable workflows expose a `run_on_draft`
+boolean input (default `false`) and honour a repo variable `vars.CI_RUN_ON_DRAFT == 'true'`.
+To run a cheap lane (e.g. fmt/lint) on drafts, pass `run_on_draft: true` to that caller job,
+or set the repo variable to opt the whole repo in — no other YAML change.
+
+**Exempt** workflows (release, scheduled drift, scorecard, security-always-run) are not
+draft-gated; list them in the `draft-gate-exempt` input of `general-workflows-policy.yml`.
 
 ### Per-job permissions
 
@@ -339,6 +380,11 @@ The same standards apply to reusable workflows defined in the `devops/` repos:
   callers shouldn't need to over-grant just because a reusable workflow under-declares).
 - Reusable workflow definitions use `on: workflow_call:` so path filters don't apply,
   but the self-test/CI workflows that live alongside them do follow all the rules above.
+- **Each carries the draft gate** so the whole fleet inherits it from one place: a
+  `run_on_draft` boolean input (default `false`) plus, on the root job,
+  `if: ${{ inputs.run_on_draft || vars.CI_RUN_ON_DRAFT == 'true' || github.event_name != 'pull_request' || github.event.pull_request.draft == false }}`.
+  Callers then get "no CI on draft" with no per-job `if:`; pass `run_on_draft: true` to opt
+  a cheap job (e.g. fmt) back into running on drafts.
 
 ---
 
