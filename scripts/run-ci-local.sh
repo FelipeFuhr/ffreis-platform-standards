@@ -8,6 +8,7 @@
 #
 # Usage (run from inside the target repo):
 #   run-ci-local.sh                     # all workflows, push event
+#   run-ci-local.sh --lint-only         # actionlint on workflows only (no act/Docker)
 #   run-ci-local.sh --quick             # only common lint/test/fmt jobs
 #   run-ci-local.sh -W path/to/wf.yml   # one workflow (passthrough)
 #   run-ci-local.sh -j go-lint          # one job (passthrough)
@@ -35,6 +36,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --quick) mode=quick; shift ;;
     --full)  mode=full;  shift ;;
+    --lint-only) mode=lintonly; shift ;;
     -h|--help) sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     --) shift; act_args+=("$@"); break ;;
     *)  act_args+=("$1"); shift ;;
@@ -42,6 +44,25 @@ while [[ $# -gt 0 ]]; do
 done
 
 # ── preflight ──────────────────────────────────────────────────────────────
+git rev-parse --show-toplevel >/dev/null 2>&1 \
+  || die "Not inside a git repo. cd into a repo with .github/workflows/ first."
+
+repo_root=$(git rev-parse --show-toplevel)
+[[ -d "$repo_root/.github/workflows" ]] \
+  || die "$repo_root has no .github/workflows/ — nothing for act to run."
+
+# actionlint pre-flight — catch workflow-YAML errors (the class that causes
+# startup_failure on GitHub: orphaned action SHA, bad uses:/if:) locally, before
+# any push. Runs on every invocation; --lint-only stops here and needs no Docker.
+if command -v actionlint >/dev/null 2>&1; then
+  info "actionlint pre-flight on .github/workflows/"
+  ( cd "$repo_root" && actionlint -color ) \
+    || die "actionlint failed — fix the workflow YAML before pushing."
+else
+  warn "actionlint not on PATH — skipping workflow lint. Install: https://github.com/rhysd/actionlint"
+fi
+[[ "$mode" == lintonly ]] && { info "lint-only: done."; exit 0; }
+
 command -v act >/dev/null 2>&1 \
   || die "act not installed. See https://nektosact.com/installation"
 
@@ -58,12 +79,6 @@ if [[ -z "${DOCKER_HOST:-}" ]]; then
     info "Using rootless podman socket: $DOCKER_HOST"
   fi
 fi
-git rev-parse --show-toplevel >/dev/null 2>&1 \
-  || die "Not inside a git repo. cd into a repo with .github/workflows/ first."
-
-repo_root=$(git rev-parse --show-toplevel)
-[[ -d "$repo_root/.github/workflows" ]] \
-  || die "$repo_root has no .github/workflows/ — nothing for act to run."
 
 # Pin runner image + container arch inline (no external .actrc dependency)
 # so the script works the same whether invoked directly, via a Makefile
