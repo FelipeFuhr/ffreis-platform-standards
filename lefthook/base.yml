@@ -99,3 +99,48 @@ commit-msg:
           echo "expected: type: description  or  type(scope): description  [types: feat fix docs chore refactor test ci perf style build revert]" >&2
           exit 1
         }
+
+# ----------------------------------------------------------------------------
+# COMPLEX (tier-1) — heavy, whole-tree verification. NOT a git hook stage:
+# run explicitly via `lefthook run complex --all-files`, locally before a
+# draft->ready promotion (/ready) and as the manual workflow_dispatch CI step.
+# Language configs (go/python/rust/terraform.yml) merge their own `complex:`
+# commands into this group. Commands delegate to Makefile targets and SKIP
+# gracefully when the target is absent (`make -n` existence probe), so repos
+# adopt incrementally without breaking the group.
+# ----------------------------------------------------------------------------
+complex:
+  parallel: false
+  commands:
+    secret-scan-full:
+      # Whole-tree secret scan (the pre-commit `secret-scan` is staged-only).
+      run: |
+        set -eu
+        if make -n secrets-scan-full >/dev/null 2>&1; then
+          make secrets-scan-full
+        elif command -v gitleaks >/dev/null 2>&1; then
+          gitleaks detect --no-banner --redact
+        else
+          echo "skip: no 'secrets-scan-full' target and gitleaks not installed"
+        fi
+
+# ----------------------------------------------------------------------------
+# RELEASE (tier-2) — version-significant verification, run IN ADDITION to
+# `complex` only when the branch's conventional commits imply a minor/major
+# bump (see quality-kit/scripts/semver-bump.sh). Invoke via
+# `lefthook run release --all-files`. Same graceful-skip contract as complex.
+# ----------------------------------------------------------------------------
+release:
+  parallel: false
+  commands:
+    osv-scan:
+      # Deep dependency-vulnerability scan across the whole tree.
+      run: |
+        set -eu
+        if make -n osv-scan >/dev/null 2>&1; then
+          make osv-scan
+        elif command -v osv-scanner >/dev/null 2>&1; then
+          osv-scanner scan --recursive .
+        else
+          echo "skip: no 'osv-scan' target and osv-scanner not installed"
+        fi
