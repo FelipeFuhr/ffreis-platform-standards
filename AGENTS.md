@@ -386,6 +386,36 @@ The same standards apply to reusable workflows defined in the `devops/` repos:
   Callers then get "no CI on draft" with no per-job `if:`; pass `run_on_draft: true` to opt
   a cheap job (e.g. fmt) back into running on drafts.
 
+### CI cost control
+
+The fleet shares a finite monthly Actions-minutes budget across 80+ repos. The goal is
+**not less CI** — it is full CI *at the gates that matter* (promotion to ready, push to a
+default branch) and *~zero CI on work-in-progress*. Beyond the structural rules above,
+every workflow respects these spend levers:
+
+| Lever | Rule | Why |
+|---|---|---|
+| **Draft gating** | PR jobs skip on draft (per-job `if:` guard, or call a fleet reusable that carries the gate); `on.pull_request.types` lists `ready_for_review` so promotion fires CI | A Claude/agent-driven PR is pushed many times while still a draft — full CI on each push burns the budget. |
+| **Bounded `push:`** | Every `push:` trigger sets `branches:` (normally `[main]`, or `[main, develop]`) | An unbounded `on: push` runs full CI on *every* feature-branch push, double-billing what the draft PR already gates. **Fleet target + current state: zero unbounded `push:` triggers.** |
+| **Scanner tiering** | Heavy scanners (CodeQL, semgrep, scorecards, snyk, lighthouse, a11y, SEO, mutation, fuzz) run on `schedule:` and/or push-to-default — **never** on every draft PR | These are the priciest jobs; a nightly/weekly cadence on the merged tree gives the coverage without per-WIP cost. |
+| **Required-check safety** | A required status check must always *run and report* — never `skip`. A check that is sometimes irrelevant (e.g. a promote-gate on a CI-only PR) must still run and **pass** (detect "nothing to do" → exit 0), not be skipped | A skipped required check reads as "unsatisfied" and wedges merge; the wrong fix is then weakening branch protection. Run-and-pass keeps protection intact. See `general-promote-gate.yml`'s CI-only-change short-circuit. |
+| **Cron jitter** | New scheduled workflows pick a per-repo/per-workflow minute+hour, not a shared round value | Many repos currently share `0 6 * * 1` (security) / `0 3 * * 0` (automation). GitHub **queues** simultaneous crons — so this is queue latency, *not* extra minutes — but jittering (`<repo-hash % 60> <6..9> * * 1`) smooths the herd. Low priority precisely because it does not change billing. |
+
+**Self-enforcing, no drift:** the draft-gating + `ready_for_review` + concurrency rules are
+asserted on every PR by `general-workflows-policy.yml`; the local mirror is
+`quality-kit/scripts/ci_draft_policy.py` (`make -C quality-kit ci-standards`). New repos
+inherit the gated, structured workflows from the Copier templates
+(`platform/ffreis-project-templates`) — **fix the template, not 80 copies** — so the standard
+cannot be missed on a newly-scaffolded repo.
+
+**Proactive backstops against a sudden burst** (two layers, set both):
+1. **Hard ceiling** — the GitHub billing **spending limit** (Settings → Billing → Spending
+   limit). A runaway loop physically cannot exceed it. This is the only true cap; set it.
+2. **Early warning** — the `ffreis-platform-monitor-lambda` Actions-burst alert emails when
+   fleet-wide workflow-run volume spikes past a tunable threshold in a short window
+   (`ACTIONS_BURST_THRESHOLD` / `ACTIONS_BURST_WINDOW_MIN`), so a spike is caught long before
+   it reaches the ceiling.
+
 ---
 
 ## Workspace Essentials
