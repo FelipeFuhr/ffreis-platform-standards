@@ -51,22 +51,53 @@ remotes:
     configs:
       - lefthook/base.yml
       - lefthook/go.yml
-
-# repo-specific pre-push only:
-pre-push:
-  parallel: false
-  commands:
-    test:
-      run: make test
 ```
+That's the whole file. The remotes bring the simple `pre-commit`/`commit-msg` hooks AND
+the heavy `complex`/`release` groups. Do **not** add a per-repo `pre-push: test` block —
+the heavy suite now runs via `lefthook run complex --all-files` at the draft→ready gate
+(`/ready`), not on every push (see the tier section below). A repo only adds local
+overrides when it genuinely diverges (e.g. a chdir for a non-standard layout).
 
 Available shared configs:
-- `lefthook/base.yml` — hygiene (merge markers, large files, binary files) + secret-scan + agents-drift-hint + commit-msg (ALL repos)
-- `lefthook/go.yml` — go-mod-drift + fmt-check + lint
-- `lefthook/python.yml` — fmt-check (Python glob)
-- `lefthook/rust.yml` — fmt-check (Rust glob)
-- `lefthook/terraform.yml` — fmt-check + tflint lint (Terraform glob)
+- `lefthook/base.yml` — hygiene (merge markers, large files, binary files) + secret-scan + agents-drift-hint + commit-msg (ALL repos); plus the `complex`/`release` heavy tiers (see below)
+- `lefthook/go.yml` — go-mod-drift + fmt-check + lint; `complex`: quality-gates; `release`: cross-build + mutation + fuzz
+- `lefthook/python.yml` — fmt-check (Python glob); `complex`: lint (ruff+mypy) + test/coverage; `release`: mutation
+- `lefthook/rust.yml` — fmt-check (Rust glob); `complex`: lint (clippy) + test + sec; `release`: release-build + mutation
+- `lefthook/terraform.yml` — fmt-check + tflint lint (Terraform glob); `complex`: validate; `release`: plan + sec (tfsec)
 - `lefthook/actionlint.yml` — actionlint on GitHub Actions workflows (optional, add for repos with significant workflow files)
+
+### Simple vs complex/release tiers
+
+There are three categories of checks, defined once here and run identically by the
+local git hooks and by CI (via `general-lefthook.yml`):
+
+- **SIMPLE** = the `pre-commit` + `commit-msg` stages. Fast (<~30s), run on *staged
+  files* automatically on every commit, and as the always-on CI fail-fast gate. Never
+  removed, never skipped.
+- **COMPLEX (tier-1)** = the `complex` named group. The standard heavy suite (test, race,
+  coverage, vuln/clippy). NOT a git hook — invoke explicitly with
+  `lefthook run complex --all-files`. Run locally before a draft→ready promotion
+  (`/ready` does this automatically) and as the manual `workflow_dispatch` CI step.
+- **RELEASE (tier-2)** = the `release` named group. Version-significant verification
+  (cross-build / release-build, mutation, fuzz, deep dependency scans, terraform plan).
+  Run **in addition to** complex, only when the branch's conventional commits imply a
+  **minor or major** bump (`quality-kit/scripts/semver-bump.sh` decides). Invoke with
+  `lefthook run release --all-files`.
+
+Every `complex`/`release` command delegates to a Makefile target and **skips gracefully**
+when that target is absent (a `make -n <target>` existence probe), so repos can adopt the
+tiers incrementally — a missing `mutation`/`coverage`/`build-all` target prints `skip:`
+and the group keeps going. A target that *exists and fails* fails the group (so the
+`/ready` gate blocks). There is intentionally **no `pre-push` standard** — in the
+draft-first flow pushes are frequent; heavy work belongs at the promotion gate.
+
+**Staged vs `--all-files` (important, non-obvious):** the `base.yml` simple hooks read the
+git *index* (`git diff --cached`), so `--all-files` is a no-op for them. CI achieves
+full-repo parity by **staging everything first** (`general-lefthook.yml` does `git add -A`,
+`stage-files: true`) — *not* by passing `--all-files`. Do **not** "fix" the CI simple job
+to use `--all-files`; it silently reverts to partial coverage. The `complex`/`release`
+groups are Makefile-target based (whole tree), so `--all-files` *is* meaningful there and
+is required when invoking them in CI or `/ready`.
 
 **All hook logic is inlined in the YAML** — repos do NOT need local `scripts/hooks/*.sh`
 files. The `scripts/bootstrap_lefthook.sh` still needs to be per-repo (it runs before
