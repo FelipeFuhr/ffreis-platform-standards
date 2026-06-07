@@ -1,6 +1,45 @@
 .DEFAULT_GOAL := help
 SHELL         := /usr/bin/env bash
 
+# Multi-line Python validators are kept in exported variables so each recipe
+# stays a single `python3 -c "$$VAR"` invocation. A bare multi-line
+# `python3 -c "..."` recipe is split per-line by Make and fails with
+# `unexpected EOF`; this idiom avoids .ONESHELL (which would mis-handle the
+# @-prefixed, multi-line `setup` recipe).
+define VALIDATE_JSON_PY
+import json, glob, sys
+files = sorted(['renovate.json'] + glob.glob('renovate/*.json'))
+failed = []
+for f in files:
+    try:
+        json.load(open(f))
+        print(f'  OK  {f}')
+    except json.JSONDecodeError as e:
+        print(f'  FAIL {f}: {e}')
+        failed.append(f)
+if failed:
+    sys.exit(1)
+print(f'All {len(files)} JSON configs valid.')
+endef
+export VALIDATE_JSON_PY
+
+define VALIDATE_YAML_PY
+import yaml, glob, sys
+files = sorted(['lefthook.yml'] + glob.glob('lefthook/*.yml') + glob.glob('golangci/*.yml'))
+failed = []
+for f in files:
+    try:
+        yaml.safe_load(open(f))
+        print(f'  OK  {f}')
+    except yaml.YAMLError as e:
+        print(f'  FAIL {f}: {e}')
+        failed.append(f)
+if failed:
+    sys.exit(1)
+print(f'All {len(files)} YAML configs valid.')
+endef
+export VALIDATE_YAML_PY
+
 .PHONY: help lint validate-json validate-yaml shellcheck fmt-check \
         secrets-scan-staged lefthook-bootstrap lefthook-install hooks setup
 
@@ -13,44 +52,16 @@ lint: ## Lint workflow YAML with actionlint
 	actionlint
 
 validate-json: ## Validate renovate.json and all renovate/*.json preset files
-	@python3 -c "
-	import json, glob, sys
-	files = sorted(['renovate.json'] + glob.glob('renovate/*.json'))
-	failed = []
-	for f in files:
-	    try:
-	        json.load(open(f))
-	        print(f'  OK  {f}')
-	    except json.JSONDecodeError as e:
-	        print(f'  FAIL {f}: {e}')
-	        failed.append(f)
-	if failed:
-	    sys.exit(1)
-	print(f'All {len(files)} JSON configs valid.')
-	"
+	@python3 -c "$$VALIDATE_JSON_PY"
 
 validate-yaml: ## Validate lefthook.yml and all lefthook/*.yml and golangci/*.yml files
-	@python3 -c "
-	import yaml, glob, sys
-	files = sorted(['lefthook.yml'] + glob.glob('lefthook/*.yml') + glob.glob('golangci/*.yml'))
-	failed = []
-	for f in files:
-	    try:
-	        yaml.safe_load(open(f))
-	        print(f'  OK  {f}')
-	    except yaml.YAMLError as e:
-	        print(f'  FAIL {f}: {e}')
-	        failed.append(f)
-	if failed:
-	    sys.exit(1)
-	print(f'All {len(files)} YAML configs valid.')
-	"
+	@python3 -c "$$VALIDATE_YAML_PY"
 
 fmt-check: lint validate-json validate-yaml ## Run all local validation checks
 
 shellcheck: ## Lint shell scripts
 	@if command -v shellcheck >/dev/null 2>&1; then \
-	  shellcheck -x create_prs.sh create_ci_tooling_prs.sh scripts/bootstrap_lefthook.sh; \
+	  find scripts/ -name '*.sh' -print0 | xargs -0 shellcheck -x; \
 	else \
 	  echo "shellcheck not found; skipping"; \
 	fi
