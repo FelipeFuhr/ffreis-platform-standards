@@ -16,8 +16,53 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
+  preflight:
+    # Schedule/dispatch: skip if no security-relevant files changed since last successful scan.
+    # PR/push events skip this job; the 'changes' job handles those paths instead.
+    if: github.event_name != 'pull_request' && github.event_name != 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      should_run: ${{ steps.check.outputs.should_run }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+      - name: Check if scan needed
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" != "schedule" ]]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          LAST_SHA=$(gh run list \
+            --workflow "devops-security.yml" \
+            --status success \
+            --event schedule \
+            --limit 1 \
+            --json headSha \
+            --jq '.[0].headSha // ""' 2>/dev/null || echo "")
+          if [[ -z "$LAST_SHA" || "$LAST_SHA" == "null" ]]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          CHANGED=$(git diff --name-only "$LAST_SHA" HEAD 2>/dev/null | \
+            grep -cE '(Cargo\.(toml|lock)|go\.(mod|sum)|package(-lock)?\.json|yarn\.lock|requirements.*\.txt|Pipfile(\.lock)?|pyproject\.toml|pom\.xml|build\.gradle|\.github/)' \
+            || echo 0)
+          if [[ "$CHANGED" -gt 0 ]]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::${CHANGED} security-relevant file(s) changed — running scan"
+          else
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No security-relevant changes since last scan — skipping"
+          fi
+
   changes:
-    # Skip heavy vuln scanners (trivy/grype/osv) on docs-only changes.
+    # PR/push only: skip heavy vuln scanners on docs-only diffs.
     # gitleaks still runs on everything — secrets can hide in markdown too.
     if: github.event_name == 'pull_request' || github.event_name == 'push'
     runs-on: ubuntu-latest

@@ -61,7 +61,7 @@ fmt-check: lint validate-json validate-yaml ## Run all local validation checks
 
 shellcheck: ## Lint shell scripts
 	@if command -v shellcheck >/dev/null 2>&1; then \
-	  shellcheck -x create_prs.sh create_ci_tooling_prs.sh scripts/bootstrap_lefthook.sh; \
+	  find scripts/ -name '*.sh' -print0 | xargs -0 shellcheck -x; \
 	else \
 	  echo "shellcheck not found; skipping"; \
 	fi
