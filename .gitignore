@@ -4,3 +4,4 @@
 # workspace/ contains Claude context files (CLAUDE.md, AGENTS.md) with private repo names
 # and internal infrastructure details. Never commit these to this public repo.
 workspace/
+.scannerwork/
