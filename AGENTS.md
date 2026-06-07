@@ -349,13 +349,49 @@ the fleet inventory repo → `AGENTS.md`.
 
 ### Branching model
 
-| Repo type | Branches | Deploy trigger |
-|-----------|----------|----------------|
-| Website/KB content repos | `develop` + `main` | push to `develop` → dev; push to `main` → prod |
-| Tools, infra, libraries | `main` only | push to `main` (or manual) |
+| Repo type | Branches | Default PR base | Deploy trigger |
+|-----------|----------|-----------------|----------------|
+| Website/KB content repos | `develop` + `main` | `develop` | push to `develop` → dev; push to `main` → prod |
+| Tools, infra, libraries | `main` only | `main` | push to `main` (or manual) |
 
-Always create a feature branch off `develop` (content repos) or `main` (tool repos).
-Open a PR. **Never push directly to `main` or `develop`.**
+**Repos with `develop`** follow a strict promote-then-sync flow:
+
+```
+main ──────────────────────────────────►  production
+ ↑                                              ↑
+ │  promote PR (develop → main)                 │
+ │                                              │
+develop ──────────────────────────────►  dev / staging
+ ↑
+ │  feature PRs (feature/* → develop)
+feature/* (always branch off develop)
+```
+
+**Four invariants — no exceptions:**
+
+1. **`main` only receives commits from `develop`** via a promote PR.
+   Never merge a feature branch directly into `main`.
+2. **`develop` always branches off `main`** — when `main` advances after a
+   promote, `develop` must immediately be brought back in sync by merging
+   `main` into `develop` via a `chore/sync-develop-from-main` PR.
+3. **All feature/fix/chore branches start from `develop`**, never from `main`.
+4. **`develop` is the default base branch** for all PRs in repos that have it.
+
+**Syncing develop after a promote (after any main advance):**
+
+```bash
+# From the repo root — create a sync PR:
+git fetch origin
+git checkout -b chore/sync-develop-from-main origin/develop
+git merge origin/main --no-ff -m "chore: sync develop from main"
+git push -u origin HEAD
+gh pr create --draft --base develop \
+  --title "chore: sync develop from main" \
+  --body "Routine sync — brings develop up to date after main advanced."
+# Merge immediately; no review required.
+```
+
+Never push directly to `main` or `develop` — always use a PR, even for sync merges.
 
 ### Secrets checklist for new repos
 
