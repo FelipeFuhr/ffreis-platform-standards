@@ -51,22 +51,53 @@ remotes:
     configs:
       - lefthook/base.yml
       - lefthook/go.yml
-
-# repo-specific pre-push only:
-pre-push:
-  parallel: false
-  commands:
-    test:
-      run: make test
 ```
+That's the whole file. The remotes bring the simple `pre-commit`/`commit-msg` hooks AND
+the heavy `complex`/`release` groups. Do **not** add a per-repo `pre-push: test` block —
+the heavy suite now runs via `lefthook run complex --all-files` at the draft→ready gate
+(`/ready`), not on every push (see the tier section below). A repo only adds local
+overrides when it genuinely diverges (e.g. a chdir for a non-standard layout).
 
 Available shared configs:
-- `lefthook/base.yml` — hygiene (merge markers, large files, binary files) + secret-scan + agents-drift-hint + commit-msg (ALL repos)
-- `lefthook/go.yml` — go-mod-drift + fmt-check + lint
-- `lefthook/python.yml` — fmt-check (Python glob)
-- `lefthook/rust.yml` — fmt-check (Rust glob)
-- `lefthook/terraform.yml` — fmt-check + tflint lint (Terraform glob)
+- `lefthook/base.yml` — hygiene (merge markers, large files, binary files) + secret-scan + agents-drift-hint + commit-msg (ALL repos); plus the `complex`/`release` heavy tiers (see below)
+- `lefthook/go.yml` — go-mod-drift + fmt-check + lint; `complex`: quality-gates; `release`: cross-build + mutation + fuzz
+- `lefthook/python.yml` — fmt-check (Python glob); `complex`: lint (ruff+mypy) + test/coverage; `release`: mutation
+- `lefthook/rust.yml` — fmt-check (Rust glob); `complex`: lint (clippy) + test + sec; `release`: release-build + mutation
+- `lefthook/terraform.yml` — fmt-check + tflint lint (Terraform glob); `complex`: validate; `release`: plan + sec (tfsec)
 - `lefthook/actionlint.yml` — actionlint on GitHub Actions workflows (optional, add for repos with significant workflow files)
+
+### Simple vs complex/release tiers
+
+There are three categories of checks, defined once here and run identically by the
+local git hooks and by CI (via `general-lefthook.yml`):
+
+- **SIMPLE** = the `pre-commit` + `commit-msg` stages. Fast (<~30s), run on *staged
+  files* automatically on every commit, and as the always-on CI fail-fast gate. Never
+  removed, never skipped.
+- **COMPLEX (tier-1)** = the `complex` named group. The standard heavy suite (test, race,
+  coverage, vuln/clippy). NOT a git hook — invoke explicitly with
+  `lefthook run complex --all-files`. Run locally before a draft→ready promotion
+  (`/ready` does this automatically) and as the manual `workflow_dispatch` CI step.
+- **RELEASE (tier-2)** = the `release` named group. Version-significant verification
+  (cross-build / release-build, mutation, fuzz, deep dependency scans, terraform plan).
+  Run **in addition to** complex, only when the branch's conventional commits imply a
+  **minor or major** bump (`quality-kit/scripts/semver-bump.sh` decides). Invoke with
+  `lefthook run release --all-files`.
+
+Every `complex`/`release` command delegates to a Makefile target and **skips gracefully**
+when that target is absent (a `make -n <target>` existence probe), so repos can adopt the
+tiers incrementally — a missing `mutation`/`coverage`/`build-all` target prints `skip:`
+and the group keeps going. A target that *exists and fails* fails the group (so the
+`/ready` gate blocks). There is intentionally **no `pre-push` standard** — in the
+draft-first flow pushes are frequent; heavy work belongs at the promotion gate.
+
+**Staged vs `--all-files` (important, non-obvious):** the `base.yml` simple hooks read the
+git *index* (`git diff --cached`), so `--all-files` is a no-op for them. CI achieves
+full-repo parity by **staging everything first** (`general-lefthook.yml` does `git add -A`,
+`stage-files: true`) — *not* by passing `--all-files`. Do **not** "fix" the CI simple job
+to use `--all-files`; it silently reverts to partial coverage. The `complex`/`release`
+groups are Makefile-target based (whole tree), so `--all-files` *is* meaningful there and
+is required when invoking them in CI or `/ready`.
 
 **All hook logic is inlined in the YAML** — repos do NOT need local `scripts/hooks/*.sh`
 files. The `scripts/bootstrap_lefthook.sh` still needs to be per-repo (it runs before
@@ -248,9 +279,50 @@ new workflow and every edit to an existing one.
 | `concurrency.cancel-in-progress: true` | Every push/PR workflow | Prevents stale runs racing with new commits |
 | `timeout-minutes` per job | Every **direct** job | 15 min for quick checks, 30 min for builds/tests; never omit |
 | `timeout-minutes` on `uses:` caller jobs | **Forbidden** (GitHub rejects) | Set the timeout inside the reusable workflow's job instead |
-| `if: ${{ !github.event.pull_request.draft }}` | Every expensive job in PR-triggered workflows | Saves CI minutes on WIP branches |
+| Draft gate on **every** PR job (not just expensive ones) | `if: ${{ github.event_name != 'pull_request' \|\| github.event.pull_request.draft == false }}` — or call a fleet reusable workflow, which carries the gate | Drafts run ~no CI; see "Draft gating" below |
+| `on.pull_request.types: [opened, synchronize, reopened, ready_for_review]` | Every PR-triggered workflow | So promoting a draft to ready fires CI natively (the bare default omits `ready_for_review`) |
 | `permissions:` per job (least privilege) | Required, **no workflow-level `permissions:`** | See "Per-job permissions" below |
 | Path filters on push/PR triggers | Required where applicable | Limit triggers to files that actually affect the workflow |
+
+### Draft gating (no CI on draft)
+
+Draft PRs must run ~no CI; full CI runs only when a PR is **ready for review** and on
+**push to `main`/`develop`**. Enforced by `general-workflows-policy.yml` (fleet) and
+`quality-kit/scripts/audit-ci-standards.sh` (local).
+
+Two required pieces on every PR-triggered workflow:
+
+1. **Trigger** — list `ready_for_review` so promotion fires CI:
+   ```yaml
+   on:
+     pull_request:
+       types: [opened, synchronize, reopened, ready_for_review]
+   ```
+   Adding an explicit `types:` replaces the default set, so you MUST re-list
+   `opened, synchronize, reopened` alongside `ready_for_review`.
+
+2. **Job guard** — every PR job either calls a fleet reusable workflow (which carries the
+   gate) or guards itself:
+   ```yaml
+   jobs:
+     lint:
+       if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
+   ```
+   On `push` the guard short-circuits to true (no draft concept on push), so push CI is
+   unaffected.
+
+**`needs:` cascade:** put the guard on the **root** job (the one with no `needs:`). When a
+gated job skips on a draft, downstream jobs that `need:` it skip too (the default
+success requirement) — so guarding the root skips the whole chain. Do **not** add
+`if: always()`; that defeats the skip.
+
+**Tuning knobs** (default = skip on draft): reusable workflows expose a `run_on_draft`
+boolean input (default `false`) and honour a repo variable `vars.CI_RUN_ON_DRAFT == 'true'`.
+To run a cheap lane (e.g. fmt/lint) on drafts, pass `run_on_draft: true` to that caller job,
+or set the repo variable to opt the whole repo in — no other YAML change.
+
+**Exempt** workflows (release, scheduled drift, scorecard, security-always-run) are not
+draft-gated; list them in the `draft-gate-exempt` input of `general-workflows-policy.yml`.
 
 ### Per-job permissions
 
@@ -339,6 +411,41 @@ The same standards apply to reusable workflows defined in the `devops/` repos:
   callers shouldn't need to over-grant just because a reusable workflow under-declares).
 - Reusable workflow definitions use `on: workflow_call:` so path filters don't apply,
   but the self-test/CI workflows that live alongside them do follow all the rules above.
+- **Each carries the draft gate** so the whole fleet inherits it from one place: a
+  `run_on_draft` boolean input (default `false`) plus, on the root job,
+  `if: ${{ inputs.run_on_draft || vars.CI_RUN_ON_DRAFT == 'true' || github.event_name != 'pull_request' || github.event.pull_request.draft == false }}`.
+  Callers then get "no CI on draft" with no per-job `if:`; pass `run_on_draft: true` to opt
+  a cheap job (e.g. fmt) back into running on drafts.
+
+### CI cost control
+
+The fleet shares a finite monthly Actions-minutes budget across 80+ repos. The goal is
+**not less CI** — it is full CI *at the gates that matter* (promotion to ready, push to a
+default branch) and *~zero CI on work-in-progress*. Beyond the structural rules above,
+every workflow respects these spend levers:
+
+| Lever | Rule | Why |
+|---|---|---|
+| **Draft gating** | PR jobs skip on draft (per-job `if:` guard, or call a fleet reusable that carries the gate); `on.pull_request.types` lists `ready_for_review` so promotion fires CI | A Claude/agent-driven PR is pushed many times while still a draft — full CI on each push burns the budget. |
+| **Bounded `push:`** | Every `push:` trigger sets `branches:` (normally `[main]`, or `[main, develop]`) | An unbounded `on: push` runs full CI on *every* feature-branch push, double-billing what the draft PR already gates. **Fleet target + current state: zero unbounded `push:` triggers.** |
+| **Scanner tiering** | Heavy scanners (CodeQL, semgrep, scorecards, snyk, lighthouse, a11y, SEO, mutation, fuzz) run on `schedule:` and/or push-to-default — **never** on every draft PR | These are the priciest jobs; a nightly/weekly cadence on the merged tree gives the coverage without per-WIP cost. |
+| **Required-check safety** | A required status check must always *run and report* — never `skip`. A check that is sometimes irrelevant (e.g. a promote-gate on a CI-only PR) must still run and **pass** (detect "nothing to do" → exit 0), not be skipped | A skipped required check reads as "unsatisfied" and wedges merge; the wrong fix is then weakening branch protection. Run-and-pass keeps protection intact. See `general-promote-gate.yml`'s CI-only-change short-circuit. |
+| **Cron jitter** | New scheduled workflows pick a per-repo/per-workflow minute+hour, not a shared round value | Many repos currently share `0 6 * * 1` (security) / `0 3 * * 0` (automation). GitHub **queues** simultaneous crons — so this is queue latency, *not* extra minutes — but jittering (`<repo-hash % 60> <6..9> * * 1`) smooths the herd. Low priority precisely because it does not change billing. |
+
+**Self-enforcing, no drift:** the draft-gating + `ready_for_review` + concurrency rules are
+asserted on every PR by `general-workflows-policy.yml`; the local mirror is
+`quality-kit/scripts/ci_draft_policy.py` (`make -C quality-kit ci-standards`). New repos
+inherit the gated, structured workflows from the Copier templates
+(`platform/ffreis-project-templates`) — **fix the template, not 80 copies** — so the standard
+cannot be missed on a newly-scaffolded repo.
+
+**Proactive backstops against a sudden burst** (two layers, set both):
+1. **Hard ceiling** — the GitHub billing **spending limit** (Settings → Billing → Spending
+   limit). A runaway loop physically cannot exceed it. This is the only true cap; set it.
+2. **Early warning** — the `ffreis-platform-monitor-lambda` Actions-burst alert emails when
+   fleet-wide workflow-run volume spikes past a tunable threshold in a short window
+   (`ACTIONS_BURST_THRESHOLD` / `ACTIONS_BURST_WINDOW_MIN`), so a spike is caught long before
+   it reaches the ceiling.
 
 ---
 
