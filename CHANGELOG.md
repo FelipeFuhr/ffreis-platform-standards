@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.1](https://github.com/FelipeFuhr/ffreis-platform-standards/compare/v1.3.0...v1.3.1) (2026-06-07)
+
+
+### Bug Fixes
+
+* **grype:** bump workflows-general SHA to prevent self-scan CVEs ([#43](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/43)) ([4268f2c](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/4268f2c460dfbb981de16a515509941d9e0cfe62))
+
 ## [1.2.1](https://github.com/FelipeFuhr/ffreis-platform-standards/compare/v1.2.0...v1.2.1) (2026-05-24)
 
 
