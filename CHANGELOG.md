@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.4.0](https://github.com/FelipeFuhr/ffreis-platform-standards/compare/v1.3.1...v1.4.0) (2026-06-09)
+
+
+### Features
+
+* **ci-local:** --findings mode — capture act SARIF locally, report + classify ([#48](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/48)) ([053902a](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/053902a46da02d0500f297c06f5ba697f247adc7))
+* **ci-local:** self-bootstrap ci-local-findings.py so --findings needs no Makefile change ([#50](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/50)) ([45def9f](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/45def9fbc75fe40ad2ce40a65501b830868f250a))
+
 ## [1.3.1](https://github.com/FelipeFuhr/ffreis-platform-standards/compare/v1.3.0...v1.3.1) (2026-06-07)
 
 
