@@ -10,6 +10,10 @@
 #   run-ci-local.sh                     # all workflows, push event
 #   run-ci-local.sh --lint-only         # actionlint on workflows only (no act/Docker)
 #   run-ci-local.sh --quick             # only common lint/test/fmt jobs
+#   run-ci-local.sh --findings          # capture scanner SARIF to a gitignored
+#                                       #   .ci-local/, report every finding +
+#                                       #   remediation, classify each job (so
+#                                       #   nothing fails silently); gates on errors
 #   run-ci-local.sh -W path/to/wf.yml   # one workflow (passthrough)
 #   run-ci-local.sh -j go-lint          # one job (passthrough)
 #   run-ci-local.sh -- --rm             # everything after `--` goes to act
@@ -31,12 +35,14 @@ die()  { printf '%s[ci-local]%s %s\n' "$c_red" "$c_off" "$*" >&2; exit 1; }
 
 # ── parse args ─────────────────────────────────────────────────────────────
 mode=full
+findings=no
 act_args=()
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --quick) mode=quick; shift ;;
     --full)  mode=full;  shift ;;
     --lint-only) mode=lintonly; shift ;;
+    --findings) findings=yes; shift ;;
     -h|--help) sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     --) shift; act_args+=("$@"); break ;;
     *)  act_args+=("$1"); shift ;;
@@ -91,6 +97,21 @@ act_platform_args=(
   -P "ubuntu-24.04=$runner_image_24"
   --container-architecture linux/amd64
 )
+
+# ── findings mode setup ──────────────────────────────────────────────────────
+# --bind so the scanners' workspace SARIF writes persist on the host; capture
+# everything under a gitignored .ci-local/. Gitignore via .git/info/exclude so
+# no committed change is needed and it works on every clone today.
+cil=""
+if [[ "$findings" == yes ]]; then
+  cil="$repo_root/.ci-local"
+  mkdir -p "$cil"/{logs,findings,coverage,artifacts}
+  exclude_file="$(git rev-parse --git-path info/exclude)"
+  mkdir -p "$(dirname "$exclude_file")"
+  grep -qxF '/.ci-local/' "$exclude_file" 2>/dev/null || echo '/.ci-local/' >> "$exclude_file"
+  act_platform_args+=( --bind --artifact-server-path "$cil/artifacts" )
+  info "Findings mode: capturing scanner output to $cil (gitignored)"
+fi
 
 # ── credential probe ───────────────────────────────────────────────────────
 tmp_dir=$(mktemp -d -t ci-local.XXXXXX)
@@ -167,6 +188,7 @@ fi
 # ── invocation ─────────────────────────────────────────────────────────────
 cd "$repo_root"
 log_file="$tmp_dir/act.log"
+[[ "$findings" == yes ]] && log_file="$cil/logs/act-$(date +%Y%m%d-%H%M%S).log"
 
 if [[ "$mode" == quick ]]; then
   # Intersect repo's actual job names with a conservative cheap-check list.
@@ -191,6 +213,97 @@ else
   act push "${act_platform_args[@]}" --secret-file "$secrets_file" --env-file "$env_file" "${act_args[@]}" 2>&1 | tee "$log_file"
   act_status=${PIPESTATUS[0]}
   set -e
+fi
+
+# ── findings mode: collect, classify each job, aggregate, gate ──────────────
+if [[ "$findings" == yes ]]; then
+  reclaim() { # make a root-owned output user-owned so it's movable; loud on failure
+    [[ -O "$1" ]] && return 0
+    chown "$(id -u):$(id -g)" "$1" 2>/dev/null && return 0
+    podman unshare chown "$(id -u):$(id -g)" "$1" 2>/dev/null && return 0
+    sudo -n chown "$(id -u):$(id -g)" "$1" 2>/dev/null && return 0
+    warn "could not reclaim ownership of $1 (root-owned, left in place)"; return 1
+  }
+  shopt -s nullglob
+  for f in "$repo_root"/*.sarif "$repo_root"/*-results/*.sarif "$repo_root"/results.sarif; do
+    [[ -f "$f" ]] || continue
+    case "$f" in "$cil"/*) continue ;; esac
+    reclaim "$f" && mv -f "$f" "$cil/findings/" 2>/dev/null || true
+  done
+  for f in "$repo_root"/coverage.out "$repo_root"/lcov.info "$repo_root"/coverage.xml; do
+    [[ -f "$f" ]] && { reclaim "$f" && mv -f "$f" "$cil/coverage/" 2>/dev/null || true; }
+  done
+
+  # Classify each job: PASS / FOUND-FINDINGS / UPLOAD-ONLY-FAILED / REAL-FAIL /
+  # CANNOT-RUN-LOCALLY. Findings (SARIF *results*) corroborate — a scanner that
+  # exits non-zero because it found something is FOUND-FINDINGS, not REAL-FAIL;
+  # an upload-only failure with no captured SARIF stays REAL-FAIL (fail-safe).
+  real_fail=$(LOG="$log_file" FIND="$cil/findings" RUNJSON="$cil/run.json" python3 - <<'PY'
+import os, re, json, pathlib, sys
+log = pathlib.Path(os.environ["LOG"]).read_text(errors="replace")
+fdir = pathlib.Path(os.environ["FIND"])
+n = 0
+for sp in fdir.glob("*.sarif"):
+    try:
+        for run in (json.loads(sp.read_text()).get("runs") or []):
+            n += len(run.get("results") or [])
+    except Exception:
+        pass
+have_findings, have_sarif = n > 0, any(fdir.glob("*.sarif"))
+UPLOAD = re.compile(r'(upload|codecov|artifact|sarif|publish)', re.I)
+CANT = re.compile(r'(codeql|sonar|deepsource|snyk)', re.I)
+state, failsteps = {}, {}
+for line in log.splitlines():
+    m = re.match(r'\[(?P<inside>[^\]]*)\]\s*(?P<rest>.*)', line)
+    if not m:
+        continue
+    job, rest = m.group("inside").split('/')[-1].strip(), m.group("rest")
+    if 'Job succeeded' in rest:
+        state.setdefault(job, 'PASS')
+    elif 'Job failed' in rest:
+        state[job] = 'FAIL'
+    fm = re.search(r'Failure - (?:Main|Post)?\s*(.+)$', rest)
+    if fm:
+        failsteps.setdefault(job, []).append(fm.group(1).strip())
+rows, realfail = [], 0
+for job, st in sorted(state.items()):
+    if CANT.search(job):
+        cls = 'CANNOT-RUN-LOCALLY'
+    elif st == 'PASS':
+        cls = 'FOUND-FINDINGS' if have_findings else 'PASS'
+    else:
+        fails = failsteps.get(job, [])
+        if fails and all(UPLOAD.search(s) for s in fails):
+            cls = 'UPLOAD-ONLY-FAILED' if have_sarif else 'REAL-FAIL'
+        elif have_findings:
+            cls = 'FOUND-FINDINGS'
+        else:
+            cls = 'REAL-FAIL'
+    realfail += cls == 'REAL-FAIL'
+    rows.append((job, cls))
+icon = {'PASS':'✅','FOUND-FINDINGS':'🔎','UPLOAD-ONLY-FAILED':'🟡','REAL-FAIL':'❌','CANNOT-RUN-LOCALLY':'⏭'}
+sys.stderr.write("\n\033[1m── Job run-state ──\033[0m\n")
+for job, cls in rows:
+    sys.stderr.write(f"  {icon.get(cls,'?')} {cls:<20} {job}\n")
+pathlib.Path(os.environ["RUNJSON"]).write_text(json.dumps({"jobs": dict(rows)}, indent=2))
+print(realfail)
+PY
+)
+
+  agg="$(dirname "$0")/ci-local-findings.py"
+  agg_rc=0
+  if [[ -f "$agg" ]]; then
+    echo
+    python3 "$agg" "$cil/findings" || agg_rc=$?
+  else
+    warn "ci-local-findings.py not found next to run-ci-local.sh — skipping findings report"
+  fi
+
+  [[ "${real_fail:-0}" -gt 0 ]] \
+    && die "$real_fail job(s) had a REAL failure (not just a GitHub-only upload). See run-state above."
+  [[ "$agg_rc" -ne 0 ]] && die "error-level findings present (see the report above)."
+  info "Local findings gate passed. Reports under $cil/"
+  exit 0
 fi
 
 # ── post-parse: distinguish missing-credential from real failures ──────────
