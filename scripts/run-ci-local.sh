@@ -228,10 +228,11 @@ if [[ "$findings" == yes ]]; then
   for f in "$repo_root"/*.sarif "$repo_root"/*-results/*.sarif "$repo_root"/results.sarif; do
     [[ -f "$f" ]] || continue
     case "$f" in "$cil"/*) continue ;; esac
-    reclaim "$f" && mv -f "$f" "$cil/findings/" 2>/dev/null || true
+    if reclaim "$f"; then mv -f "$f" "$cil/findings/" 2>/dev/null || true; fi
   done
   for f in "$repo_root"/coverage.out "$repo_root"/lcov.info "$repo_root"/coverage.xml; do
-    [[ -f "$f" ]] && { reclaim "$f" && mv -f "$f" "$cil/coverage/" 2>/dev/null || true; }
+    [[ -f "$f" ]] || continue
+    if reclaim "$f"; then mv -f "$f" "$cil/coverage/" 2>/dev/null || true; fi
   done
 
   # Classify each job: PASS / FOUND-FINDINGS / UPLOAD-ONLY-FAILED / REAL-FAIL /
