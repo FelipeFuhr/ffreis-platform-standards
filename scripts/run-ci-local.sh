@@ -228,10 +228,11 @@ if [[ "$findings" == yes ]]; then
   for f in "$repo_root"/*.sarif "$repo_root"/*-results/*.sarif "$repo_root"/results.sarif; do
     [[ -f "$f" ]] || continue
     case "$f" in "$cil"/*) continue ;; esac
-    reclaim "$f" && mv -f "$f" "$cil/findings/" 2>/dev/null || true
+    if reclaim "$f"; then mv -f "$f" "$cil/findings/" 2>/dev/null || true; fi
   done
   for f in "$repo_root"/coverage.out "$repo_root"/lcov.info "$repo_root"/coverage.xml; do
-    [[ -f "$f" ]] && { reclaim "$f" && mv -f "$f" "$cil/coverage/" 2>/dev/null || true; }
+    [[ -f "$f" ]] || continue
+    if reclaim "$f"; then mv -f "$f" "$cil/coverage/" 2>/dev/null || true; fi
   done
 
   # Classify each job: PASS / FOUND-FINDINGS / UPLOAD-ONLY-FAILED / REAL-FAIL /
@@ -290,13 +291,26 @@ print(realfail)
 PY
 )
 
+  # Resolve the aggregator: a sibling (local clone / curled-alongside), else
+  # self-bootstrap it so `make ci-local ARGS=--findings` works fleet-wide with
+  # no Makefile change (the target only curls run-ci-local.sh). Local-only tool,
+  # so pulling the aggregator from main is fine; override the ref with
+  # CI_LOCAL_FINDINGS_REF if you need a pinned one.
   agg="$(dirname "$0")/ci-local-findings.py"
+  if [[ ! -f "$agg" ]] && command -v curl >/dev/null 2>&1; then
+    ref="${CI_LOCAL_FINDINGS_REF:-main}"
+    raw="https://raw.githubusercontent.com/FelipeFuhr/ffreis-platform-standards/${ref}/scripts/ci-local-findings.py"
+    if curl -fsSL "$raw" -o "$tmp_dir/ci-local-findings.py" 2>/dev/null; then
+      agg="$tmp_dir/ci-local-findings.py"
+      info "Fetched ci-local-findings.py (@$ref)"
+    fi
+  fi
   agg_rc=0
   if [[ -f "$agg" ]]; then
     echo
     python3 "$agg" "$cil/findings" || agg_rc=$?
   else
-    warn "ci-local-findings.py not found next to run-ci-local.sh — skipping findings report"
+    warn "ci-local-findings.py unavailable (no sibling + fetch failed) — skipping findings report"
   fi
 
   [[ "${real_fail:-0}" -gt 0 ]] \
