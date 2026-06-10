@@ -25,6 +25,14 @@
       "matchUpdateTypes": ["minor", "patch", "digest"],
       "automerge": true,
       "automergeType": "pr"
+    },
+    {
+      "matchDepNames": ["FelipeFuhr/ffreis-platform-ci-local"],
+      "groupName": "ci-local harness pin",
+      "labels": ["dependencies"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": true,
+      "automergeType": "pr"
     }
   ],
   "customManagers": [
@@ -36,6 +44,16 @@
         "git_url:\\s*https://github\\.com/FelipeFuhr/ffreis-platform-standards\\s*\\n\\s*ref:\\s*(?<currentDigest>[a-f0-9]{40})\\s*#\\s*(?<currentValue>v\\d+\\.\\d+\\.\\d+)"
       ],
       "depNameTemplate": "FelipeFuhr/ffreis-platform-standards",
+      "datasourceTemplate": "github-tags"
+    },
+    {
+      "customType": "regex",
+      "fileMatch": ["(^|/)Makefile(\\.jinja)?$"],
+      "matchStrings": [
+        "ffreis-platform-ci-local/(?<currentValue>v\\d+\\.\\d+\\.\\d+)/scripts/run-ci-local\\.sh",
+        "CI_LOCAL_FINDINGS_REF=(?<currentValue>v\\d+\\.\\d+\\.\\d+)"
+      ],
+      "depNameTemplate": "FelipeFuhr/ffreis-platform-ci-local",
       "datasourceTemplate": "github-tags"
     }
   ]
