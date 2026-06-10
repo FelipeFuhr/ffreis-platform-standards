@@ -73,6 +73,28 @@ pre-commit:
                | grep -E '^\.github/workflows/.*\.(yml|yaml)$' || true)
         [ -z "$wf" ] && exit 0
         echo "$wf" | xargs -r actionlint
+    ci-local-drift:
+      # When workflow files change, verify every reusable-workflow they
+      # reference is classified in the ci-local tool registry (the drift gate):
+      # a new CI check can't silently skip running locally. Fetches the check +
+      # registry from the public ffreis-platform-ci-local repo. Skips silently
+      # without python3/curl or when offline (best-effort local guard; CI is the
+      # authoritative gate).
+      run: |
+        set -eu
+        wf=$(git diff --cached --name-only -z \
+               | tr '\0' '\n' \
+               | grep -E '^\.github/workflows/.*\.(yml|yaml)$' || true)
+        [ -z "$wf" ] && exit 0
+        command -v python3 >/dev/null 2>&1 || exit 0
+        command -v curl >/dev/null 2>&1 || exit 0
+        base="https://raw.githubusercontent.com/FelipeFuhr/ffreis-platform-ci-local/main/scripts"
+        tmp=$(mktemp -d)
+        trap 'rm -rf "$tmp"' EXIT
+        curl -fsSL "$base/ci-local-drift.py" -o "$tmp/d.py" 2>/dev/null \
+          || { echo "ci-local drift: offline, skipping (CI will enforce)"; exit 0; }
+        curl -fsSL "$base/ci-local-tools.tsv" -o "$tmp/t.tsv" 2>/dev/null || exit 0
+        python3 "$tmp/d.py" --registry "$tmp/t.tsv" --workflows .github/workflows --enforce
     hadolint-dockerfiles:
       # Lints staged Dockerfile* with hadolint. Catches a dozen common
       # security/correctness issues (latest tags, apt-get without --no-install-
