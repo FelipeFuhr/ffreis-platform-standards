@@ -1,0 +1,8 @@
+# Backfilled to link this repo to its Copier template so `copier update`
+# and check-repo-parity.sh work. Minimal answers — complete them before a
+# full `copier update` (gap-only backfill does not need them).
+_src_path: gh:FelipeFuhr/ffreis-project-templates
+_subdirectory: templates/tooling
+_commit: 33c7dffbecc87f7643f83c459b0e4c3b70de647a
+repo_name: ffreis-platform-standards
+github_org: FelipeFuhr
