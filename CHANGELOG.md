@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.5.0](https://github.com/FelipeFuhr/ffreis-platform-standards/compare/v1.4.0...v1.5.0) (2026-06-11)
+
+
+### Features
+
+* **lefthook:** pre-commit drift gate on workflow changes ([#51](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/51)) ([d030561](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/d030561668dea4370fb8d8cafc80b5fbd763d012))
+* **renovate:** track the ffreis-platform-ci-local tag pin ([#53](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/53)) ([3558b6a](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/3558b6a1a5c4982c0e66241ac5a289dbd0a7fb64))
+
 ## [1.4.0](https://github.com/FelipeFuhr/ffreis-platform-standards/compare/v1.3.1...v1.4.0) (2026-06-09)
 
 
