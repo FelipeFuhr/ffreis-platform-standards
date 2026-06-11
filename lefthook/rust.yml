@@ -29,6 +29,12 @@ complex:
         set -eu
         make -n sec >/dev/null 2>&1 || { echo "skip: no 'sec' target"; exit 0; }
         make sec
+    coverage:
+      glob: "**/*.rs"
+      run: |
+        set -eu
+        make -n coverage-gate >/dev/null 2>&1 || { echo "skip: no 'coverage-gate' target"; exit 0; }
+        make coverage-gate
 
 release:
   parallel: false

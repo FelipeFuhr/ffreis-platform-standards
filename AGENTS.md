@@ -111,6 +111,25 @@ remotes:
     ref: v1.0.0  # pin to a release tag; Renovate will track updates
 ```
 
+## Coverage and test-type standards
+
+Fleet-wide minimums (enforced via `make coverage-gate` in the `complex` lefthook tier):
+
+| Language | Min coverage | Tool | Integration tests | Property tests | Mutation threshold |
+|---|---|---|---|---|---|
+| Go | 75% | `go test -coverprofile` + `check_coverage_gate.sh` | `//go:build integration` test files for service-boundary code | optional | 60% (gremlins) |
+| Rust | 75% | cargo-llvm-cov (line coverage) | `tests/` per crate for service ports | proptest recommended | 60% (cargo-mutants) |
+| Python | 75% (branch) | pytest-cov (`fail_under`) | separate `tests/integration/` | hypothesis recommended | 60% (mutmut) |
+
+New repos must set a `coverage-gate` Makefile target that enforces at least the floor above.
+The Copier project templates include this target by default.
+
+Mutation testing runs in the `release` tier only — it is expensive and scheduled (weekly CI),
+not a pre-push gate. A missing `mutation` target is a graceful skip, not a failure.
+
+The complex tier's `coverage` command (rust.yml) and `quality-gates` target (go.yml) both
+skip gracefully when the Makefile target is absent — adopt incrementally.
+
 ## golangci standard
 
 Copy `golangci/standard.yml` to `.golangci.yml` in each Go repo. The config is golangci-lint
