@@ -50,6 +50,19 @@ pre-commit:
             *) echo "binary file staged: $file ($mime)" >&2; exit 1 ;;
           esac
         done < "$tmpfiles"
+    pre-commit-compat:
+      # Delegates to the repo's .pre-commit-config.yaml when present, so repos
+      # that carry pre-commit hooks (which may cover checks not in base.yml and
+      # vice-versa) run under the unified lefthook pipeline instead of needing a
+      # separate `pre-commit install`. Skips gracefully when the file is absent
+      # or pre-commit is not installed locally.
+      # Note: run `pre-commit uninstall` in repos that previously called
+      # `pre-commit install` directly, to avoid the hook firing twice.
+      run: |
+        set -eu
+        [ -f .pre-commit-config.yaml ] || exit 0
+        command -v pre-commit >/dev/null 2>&1 || { echo "skip: pre-commit not installed"; exit 0; }
+        pre-commit run --hook-stage pre-commit
     secret-scan:
       run: make secrets-scan-staged
     agents-drift-hint:
