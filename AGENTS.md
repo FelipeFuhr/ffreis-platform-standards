@@ -130,6 +130,38 @@ not a pre-push gate. A missing `mutation` target is a graceful skip, not a failu
 The complex tier's `coverage` command (rust.yml) and `quality-gates` target (go.yml) both
 skip gracefully when the Makefile target is absent — adopt incrementally.
 
+## Async event flows — convention
+
+Two-axis decision model for every new async flow in the fleet. Full decision tables
+and worked examples live in
+`platform/ffreis-platform-terraform-modules/modules/async-event-queue/README.md`
+(consumer_mode) and `modules/async-job-status/README.md` (honest-success UX).
+
+**Axis 1 — last-hop trigger** (`consumer_mode`):
+
+| Choice | When to use | Module value |
+|---|---|---|
+| **Push** (`real_time`) | Downstream not rate-limited (SES, DynamoDB, low-volume HTTP); ~free at idle | `consumer_mode = "real_time"` |
+| **ESM** (`event_driven`) | Rate-limited or expensive downstream (Bedrock, Rekognition); bursty; needs backpressure / concurrency cap | `consumer_mode = "event_driven"` |
+
+**Axis 2 — delivery acknowledgement**:
+
+| Choice | When to use |
+|---|---|
+| **Await-result** (default) | User needs the outcome before the page resolves — use `submitAndAwait` in the tracker SDK |
+| **`ack_only`** | Best-effort side-effects where the user does not wait (analytics events, non-critical notifications) |
+
+**Key identity contract** (prevents the most common mix-up):
+
+- `job_id` = `DomainEvent.event_id` — **unique per submission**, the jobs-table key.
+- `correlation_id` = the ux session_id (the `x-tracker-session` request header) — **groups a session**, not a submission.
+
+Never confuse the two: `job_id` uniquely identifies one async work item;
+`correlation_id` links many events in a browser session.
+
+Always: publish a `DomainEvent`; set `create_archive = true` except on PII/auth flows;
+choose both axes from the tables above.
+
 ## golangci standard
 
 Copy `golangci/standard.yml` to `.golangci.yml` in each Go repo. The config is golangci-lint
@@ -503,6 +535,18 @@ feature/* (always branch off develop)
 3. **All feature/fix/chore branches start from `develop`**, never from `main`.
 4. **`develop` is the default base branch** for all PRs in repos that have it.
 
+**Merge strategy — one rule per PR type (enforced, not advisory):**
+
+| PR type | Merge strategy | Why |
+|---|---|---|
+| `feature/*` → `develop` | **Squash** | Each feature = one commit; keeps develop history linear |
+| `develop` → `main` (promote) | **Merge commit** | Preserves develop as a parent of main's HEAD |
+| `main` → `develop` (sync) | **Merge commit** | Records ancestry; makes next sync a clean fast-forward |
+
+**Why merge commit for promote/sync?** Squash-merges have only one parent (the base branch). Without develop as a parent of main's merge commit, the next main→develop merge has no clean common ancestor, and git re-opens every conflict that was resolved in the promote. With a merge commit, develop IS a parent of main — so the sync-back is always a conflict-free fast-forward. Rebase has the same ancestry-loss problem as squash and additionally requires force-pushing develop.
+
+Repos allow both merge commit and squash (set by `configure-repo-settings.sh`). When merging a promote or sync PR, use the **"Create a merge commit"** option in GitHub's merge button dropdown, or `gh pr merge <N> --merge`.
+
 **Syncing develop after a promote (after any main advance):**
 
 ```bash
@@ -514,7 +558,7 @@ git push -u origin HEAD
 gh pr create --draft --base develop \
   --title "chore: sync develop from main" \
   --body "Routine sync — brings develop up to date after main advanced."
-# Merge immediately; no review required.
+# Merge with MERGE COMMIT: gh pr merge <N> --merge  (not --squash)
 ```
 
 Never push directly to `main` or `develop` — always use a PR, even for sync merges.
