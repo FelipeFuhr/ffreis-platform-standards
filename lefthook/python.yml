@@ -4,38 +4,25 @@ pre-commit:
       glob: "**/*.py"
       run: make fmt-check
 
-# Heavy whole-tree tiers — see lefthook/base.yml for the run model and the
-# graceful-skip contract. Run via `lefthook run complex|release --all-files`.
+# Heavy whole-tree tiers — see lefthook/base.yml for the run model.
+# Run via `lefthook run complex|release --all-files`.
 # `lint` (ruff check + mypy) lives here, not in pre-commit: mypy is too slow
 # for every commit.
+# All targets below are REQUIRED: adding this config to a repo's lefthook
+# remotes means the repo must implement every referenced make target.
 complex:
   parallel: false
   commands:
     lint:
       glob: "**/*.py"
-      run: |
-        set -eu
-        make -n lint >/dev/null 2>&1 || { echo "skip: no 'lint' target"; exit 0; }
-        make lint
+      run: make lint
     test:
       glob: "**/*.py"
-      # Prefer the coverage-gated target; fall back to plain test.
-      run: |
-        set -eu
-        if make -n coverage >/dev/null 2>&1; then
-          make coverage
-        elif make -n test >/dev/null 2>&1; then
-          make test
-        else
-          echo "skip: no 'coverage' or 'test' target"
-        fi
+      run: make coverage
 
 release:
   parallel: false
   commands:
     mutation:
       glob: "**/*.py"
-      run: |
-        set -eu
-        make -n mutation >/dev/null 2>&1 || { echo "skip: no 'mutation' target"; exit 0; }
-        make mutation
+      run: make mutation
