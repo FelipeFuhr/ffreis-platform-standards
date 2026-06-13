@@ -163,7 +163,7 @@ complex:
 # RELEASE (tier-2) — version-significant verification, run IN ADDITION to
 # `complex` only when the branch's conventional commits imply a minor/major
 # bump (see quality-kit/scripts/semver-bump.sh). Invoke via
-# `lefthook run release --all-files`. Same graceful-skip contract as complex.
+# `lefthook run release --all-files`. Same run model as complex.
 # ----------------------------------------------------------------------------
 release:
   parallel: false
