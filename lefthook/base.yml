@@ -64,7 +64,18 @@ pre-commit:
         command -v pre-commit >/dev/null 2>&1 || { echo "skip: pre-commit not installed"; exit 0; }
         pre-commit run --hook-stage pre-commit
     secret-scan:
-      run: make secrets-scan-staged
+      # Staged-only secret scan. Prefer the repo's make target; fall back to a
+      # direct gitleaks scan so repos without a Makefile (config/docs repos) still
+      # get a pre-commit secret gate. Skip with a message only if neither exists.
+      run: |
+        set -eu
+        if make -n secrets-scan-staged >/dev/null 2>&1; then
+          make secrets-scan-staged
+        elif command -v gitleaks >/dev/null 2>&1; then
+          gitleaks protect --staged --no-banner --redact
+        else
+          echo "skip: no 'secrets-scan-staged' target and gitleaks not installed"
+        fi
     agents-drift-hint:
       run: |
         changed=$(git diff --cached --name-only 2>/dev/null)
