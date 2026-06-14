@@ -1,0 +1,23 @@
+# Kotlin (Gradle / Android) hooks.
+# Consumers add this config to their lefthook.yml remotes block.
+#
+# All targets below are REQUIRED: adding this config to a repo's lefthook
+# remotes means the repo must implement every referenced make target.
+# Required Makefile targets (implement in each consumer repo):
+#   make ktlint       — e.g. cd android && ./gradlew ktlintCheck --quiet
+#   make detekt       — e.g. cd android && ./gradlew detekt
+#   make android-test — e.g. cd android && ./gradlew testDebugUnitTest
+
+pre-commit:
+  commands:
+    ktlint:
+      glob: "**/*.{kt,kts}"
+      run: make ktlint
+    detekt:
+      glob: "**/*.kt"
+      run: make detekt
+
+pre-push:
+  commands:
+    android-test:
+      run: make android-test
