@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.7.0](https://github.com/FelipeFuhr/ffreis-platform-standards/compare/v1.6.0...v1.7.0) (2026-06-14)
+
+
+### Features
+
+* **hooks:** add lefthook/kotlin.yml and lefthook/swift.yml ([#64](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/64)) ([e651c67](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/e651c6790984167ba5f275037e363597240617e1))
+
+
+### Bug Fixes
+
+* **lefthook:** make secret-scan graceful (make→gitleaks fallback→skip) ([#66](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/66)) ([93cacb8](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/93cacb88f43b4ff22161dca81117b2491c3ee3a5))
+
+## [1.6.0](https://github.com/FelipeFuhr/ffreis-platform-standards/compare/v1.5.0...v1.6.0) (2026-06-14)
+
+
+### Features
+
+* **hooks:** add lefthook/kotlin.yml and lefthook/swift.yml ([#64](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/64)) ([e651c67](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/e651c6790984167ba5f275037e363597240617e1))
+* **hooks:** call pre-commit via lefthook when .pre-commit-config.yaml exists ([#62](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/62)) ([3d98c9a](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/3d98c9aa580e1c43ebebaa0cbceffa63626aba8b))
+
 ## [1.5.0](https://github.com/FelipeFuhr/ffreis-platform-standards/compare/v1.4.0...v1.5.0) (2026-06-11)
 
 

@@ -1,0 +1,20 @@
+# Swift (SwiftPM / Xcode) hooks.
+# Consumers add this config to their lefthook.yml remotes block.
+#
+# All targets below are REQUIRED: adding this config to a repo's lefthook
+# remotes means the repo must implement every referenced make target.
+# Required Makefile targets (implement in each consumer repo):
+#   make swiftformat — e.g. swiftformat --lint ios/
+#   make swiftlint   — e.g. cd ios && swiftlint lint --quiet --strict
+#
+# No pre-push build: swift build requires macOS (10x billing rate).
+# Add pre-push tests locally in each repo if macOS runner budget allows.
+
+pre-commit:
+  commands:
+    swiftformat:
+      glob: "**/*.swift"
+      run: make swiftformat
+    swiftlint:
+      glob: "**/*.swift"
+      run: make swiftlint

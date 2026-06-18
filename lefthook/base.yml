@@ -50,8 +50,32 @@ pre-commit:
             *) echo "binary file staged: $file ($mime)" >&2; exit 1 ;;
           esac
         done < "$tmpfiles"
+    pre-commit-compat:
+      # Delegates to the repo's .pre-commit-config.yaml when present, so repos
+      # that carry pre-commit hooks (which may cover checks not in base.yml and
+      # vice-versa) run under the unified lefthook pipeline instead of needing a
+      # separate `pre-commit install`. Skips gracefully when the file is absent
+      # or pre-commit is not installed locally.
+      # Note: run `pre-commit uninstall` in repos that previously called
+      # `pre-commit install` directly, to avoid the hook firing twice.
+      run: |
+        set -eu
+        [ -f .pre-commit-config.yaml ] || exit 0
+        command -v pre-commit >/dev/null 2>&1 || { echo "skip: pre-commit not installed"; exit 0; }
+        pre-commit run --hook-stage pre-commit
     secret-scan:
-      run: make secrets-scan-staged
+      # Staged-only secret scan. Prefer the repo's make target; fall back to a
+      # direct gitleaks scan so repos without a Makefile (config/docs repos) still
+      # get a pre-commit secret gate. Skip with a message only if neither exists.
+      run: |
+        set -eu
+        if make -n secrets-scan-staged >/dev/null 2>&1; then
+          make secrets-scan-staged
+        elif command -v gitleaks >/dev/null 2>&1; then
+          gitleaks protect --staged --no-banner --redact
+        else
+          echo "skip: no 'secrets-scan-staged' target and gitleaks not installed"
+        fi
     agents-drift-hint:
       run: |
         changed=$(git diff --cached --name-only 2>/dev/null)
@@ -150,7 +174,7 @@ complex:
 # RELEASE (tier-2) — version-significant verification, run IN ADDITION to
 # `complex` only when the branch's conventional commits imply a minor/major
 # bump (see quality-kit/scripts/semver-bump.sh). Invoke via
-# `lefthook run release --all-files`. Same graceful-skip contract as complex.
+# `lefthook run release --all-files`. Same run model as complex.
 # ----------------------------------------------------------------------------
 release:
   parallel: false
