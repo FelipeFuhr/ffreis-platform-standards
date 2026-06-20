@@ -46,7 +46,7 @@ pre-commit:
           [ -f "$file" ] || continue
           mime=$(file --mime-type -b "$file")
           case "$mime" in
-            text/*|application/json|application/xml|application/x-sh|inode/x-empty) ;;
+            text/*|application/json|application/xml|application/x-sh|application/javascript|application/ecmascript|inode/x-empty) ;;
             *) echo "binary file staged: $file ($mime)" >&2; exit 1 ;;
           esac
         done < "$tmpfiles"
