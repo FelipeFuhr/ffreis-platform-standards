@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.1](https://github.com/FelipeFuhr/ffreis-platform-standards/compare/v1.7.0...v1.7.1) (2026-06-26)
+
+
+### Bug Fixes
+
+* **ci:** pin ffreis-workflows-general to v1.7.0 ([#70](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/70)) ([700f54d](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/700f54d4c206cb69c729fe5f02e73553505ee778))
+
 ## [1.7.0](https://github.com/FelipeFuhr/ffreis-platform-standards/compare/v1.6.0...v1.7.0) (2026-06-14)
 
 
