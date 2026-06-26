@@ -16,14 +16,14 @@ jobs:
   workflows-policy:
     permissions:
       contents: read
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-workflows-policy.yml@3858e9e74c805067e454740b195372c7195f333b # v1.5.0
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-workflows-policy.yml@287f836a726a35af37bd24561fc687f66eaeb92f # v1.7.0
 
   codeql-actions:
     permissions:
       actions: read
       contents: read
       security-events: write
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-codeql.yml@3858e9e74c805067e454740b195372c7195f333b # v1.5.0
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-codeql.yml@287f836a726a35af37bd24561fc687f66eaeb92f # v1.7.0
     with:
       languages: actions
       source-root: .
@@ -35,7 +35,7 @@ jobs:
     name: Validate preset files
     permissions:
       contents: read
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-run-commands.yml@3858e9e74c805067e454740b195372c7195f333b # v1.5.0
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-run-commands.yml@287f836a726a35af37bd24561fc687f66eaeb92f # v1.7.0
     with:
       setup-python: true
       commands: |
@@ -77,6 +77,6 @@ jobs:
     name: Shell scripts
     permissions:
       contents: read
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-shellcheck.yml@3858e9e74c805067e454740b195372c7195f333b # v1.5.0
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-shellcheck.yml@287f836a726a35af37bd24561fc687f66eaeb92f # v1.7.0
     with:
       working-directory: .
