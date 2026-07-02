@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/FelipeFuhr/ffreis-platform-standards/main/flags/flag-registry.schema.json",
+  "title": "ffreis flag registry",
+  "description": "One declarative registry of every deliberate point of variation in a project. The dev toolbar, the runtime feature-flag resolver, and the compile-time build config are all GENERATED projections of this file — never hand-edited per feature. A port (mock<->real swap) is just kind:adapter; feature flags are the whole registry. Canonical source of truth. Reference implementation: heavy-heater/flags/flags.json. Spec: .claude/workspace/AGENTS.md § 'Every point of variation is a declared flag'.",
+  "type": "object",
+  "required": ["version", "flags"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "type": "integer", "const": 1 },
+    "project": { "type": "string", "description": "Repo/site name this registry governs." },
+    "flags": { "type": "array", "items": { "$ref": "#/$defs/flag" } }
+  },
+  "$defs": {
+    "flag": {
+      "type": "object",
+      "required": ["name", "kind", "category", "binding", "effect", "default"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "description": "Stable snake_case identifier. Storage suffix: dev.route.<category>.<name>."
+        },
+        "kind": {
+          "enum": ["adapter", "service", "value", "gate"],
+          "description": "adapter=swap implementation (mock<->real, testability); service=route among downstreams; value=typed config; gate=enable/disable a feature."
+        },
+        "category": {
+          "enum": ["data", "api", "model", "content", "lang", "feature", "infra"],
+          "description": "Toolbar grouping. data/api/model/content/lang are the 5 canonical dials; feature=pure gates; infra=deploy-time wiring."
+        },
+        "binding": {
+          "enum": ["compile", "runtime"],
+          "description": "compile=baked into the build (toolbar shows read-only); runtime=flippable live."
+        },
+        "effect": {
+          "enum": ["route", "toggle"],
+          "description": "route=pick among >=2 options; toggle=on/off. gate flags are always toggle."
+        },
+        "options": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "type": "string" },
+          "description": "Ordered least-real -> most-real for route flags (e.g. [mock, seeded, live]). Omit for toggle/value."
+        },
+        "value_type": {
+          "enum": ["string", "number", "boolean", "url", "enum"],
+          "description": "For kind:value — the type of the tunable. Omit for adapter/service/gate."
+        },
+        "default": {
+          "description": "Cost/safety-guarded default. Model flags MUST default to the mock/cheapest option unless justified.",
+          "type": ["string", "number", "boolean"]
+        },
+        "seam": {
+          "type": "string",
+          "description": "The ONE code location where this flag is read. Invariant: one flag -> one seam. Absent only for pure build-input compile flags."
+        },
+        "scope": {
+          "enum": ["env", "session", "user", "global"],
+          "default": "session",
+          "description": "env=per-environment default; session=dev localStorage/toolbar; user=per-user rollout; global=remote kill-switch."
+        },
+        "cost_guard": {
+          "type": "boolean",
+          "default": false,
+          "description": "True if flipping away from default can incur real cost (bill Bedrock, hit prod SES). Forces default=cheapest + a toolbar confirmation."
+        },
+        "description": { "type": "string" }
+      },
+      "allOf": [
+        { "if": { "properties": { "effect": { "const": "route" } } }, "then": { "required": ["options"] } },
+        { "if": { "properties": { "kind": { "const": "value" } } }, "then": { "required": ["value_type"] } },
+        { "if": { "properties": { "kind": { "const": "gate" } } }, "then": { "properties": { "effect": { "const": "toggle" } } } }
+      ]
+    }
+  }
+}
