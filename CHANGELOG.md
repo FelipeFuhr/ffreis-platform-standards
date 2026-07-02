@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.3](https://github.com/FelipeFuhr/ffreis-platform-standards/compare/v1.7.2...v1.7.3) (2026-07-02)
+
+
+### Bug Fixes
+
+* **lefthook:** actionlint-workflows hook errors on staged deletions ([#74](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/74)) ([5ab6640](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/5ab664049219ed3b8e3ac1ed7a9164f109a5e5e4))
+
 ## [1.7.2](https://github.com/FelipeFuhr/ffreis-platform-standards/compare/v1.7.1...v1.7.2) (2026-07-02)
 
 
