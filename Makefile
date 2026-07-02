@@ -8,7 +8,7 @@ SHELL         := /usr/bin/env bash
 # @-prefixed, multi-line `setup` recipe).
 define VALIDATE_JSON_PY
 import json, glob, sys
-files = sorted(['renovate.json'] + glob.glob('renovate/*.json'))
+files = sorted(['renovate.json'] + glob.glob('renovate/*.json') + glob.glob('flags/*.json'))
 failed = []
 for f in files:
     try:
@@ -51,7 +51,7 @@ lint: ## Lint workflow YAML with actionlint
 		echo "ERROR: actionlint not found. Install from https://github.com/rhysd/actionlint"; exit 1; }
 	actionlint
 
-validate-json: ## Validate renovate.json and all renovate/*.json preset files
+validate-json: ## Validate renovate.json, renovate/*.json presets, and flags/*.json
 	@python3 -c "$$VALIDATE_JSON_PY"
 
 validate-yaml: ## Validate lefthook.yml and all lefthook/*.yml and golangci/*.yml files
