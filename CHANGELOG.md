@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.2](https://github.com/FelipeFuhr/ffreis-platform-standards/compare/v1.7.1...v1.7.2) (2026-07-02)
+
+
+### Bug Fixes
+
+* **lefthook:** allow application/javascript and application/ecmascript MIME types ([#72](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/72)) ([17ee8a9](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/17ee8a97a4a2e5ea69025d9eb7e4224589a10a44))
+
 ## [1.7.1](https://github.com/FelipeFuhr/ffreis-platform-standards/compare/v1.7.0...v1.7.1) (2026-06-26)
 
 
