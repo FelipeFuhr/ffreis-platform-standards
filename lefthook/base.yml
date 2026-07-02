@@ -89,10 +89,13 @@ pre-commit:
       # the codeql-orphaned-SHA class of errors at commit time (see
       # project_codeql_action_orphaned_sha memory) instead of in CI minutes.
       # Skips silently when actionlint isn't installed locally.
+      # --diff-filter=d excludes deleted paths: `git diff --cached --name-only`
+      # lists staged deletions too, and actionlint errors trying to open a file
+      # that was correctly removed (a delete-only commit would fail otherwise).
       run: |
         set -eu
         command -v actionlint >/dev/null 2>&1 || exit 0
-        wf=$(git diff --cached --name-only -z \
+        wf=$(git diff --cached --name-only --diff-filter=d -z \
                | tr '\0' '\n' \
                | grep -E '^\.github/workflows/.*\.(yml|yaml)$' || true)
         [ -z "$wf" ] && exit 0
