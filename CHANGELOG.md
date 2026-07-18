@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.4](https://github.com/ffreis-org/ffreis-platform-standards/compare/v1.7.3...v1.7.4) (2026-07-18)
+
+
+### Bug Fixes
+
+* **lefthook:** repoint ci-local-drift fetch at ffreis-org ([#81](https://github.com/ffreis-org/ffreis-platform-standards/issues/81)) ([51e525d](https://github.com/ffreis-org/ffreis-platform-standards/commit/51e525da7570f1c091957e86bfb1f5f0b4a48830))
+
 ## [1.7.3](https://github.com/FelipeFuhr/ffreis-platform-standards/compare/v1.7.2...v1.7.3) (2026-07-02)
 
 
