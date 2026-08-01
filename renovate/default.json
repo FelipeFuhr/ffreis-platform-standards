@@ -27,7 +27,7 @@
       "automergeType": "pr"
     },
     {
-      "matchDepNames": ["FelipeFuhr/ffreis-platform-ci-local"],
+      "matchDepNames": ["ffreis-org/ffreis-platform-ci-local"],
       "groupName": "ci-local harness pin",
       "labels": ["dependencies"],
       "matchUpdateTypes": ["minor", "patch"],
@@ -53,7 +53,7 @@
         "ffreis-platform-ci-local/(?<currentValue>v\\d+\\.\\d+\\.\\d+)/scripts/run-ci-local\\.sh",
         "CI_LOCAL_FINDINGS_REF=(?<currentValue>v\\d+\\.\\d+\\.\\d+)"
       ],
-      "depNameTemplate": "FelipeFuhr/ffreis-platform-ci-local",
+      "depNameTemplate": "ffreis-org/ffreis-platform-ci-local",
       "datasourceTemplate": "github-tags"
     }
   ]

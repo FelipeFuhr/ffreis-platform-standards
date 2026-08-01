@@ -46,7 +46,12 @@ pre-commit:
           [ -f "$file" ] || continue
           mime=$(file --mime-type -b "$file")
           case "$mime" in
-            text/*|application/json|application/xml|application/x-sh|application/javascript|application/ecmascript|inode/x-empty) ;;
+            # `file` reports several plainly-textual formats under application/*.
+            # Omitting one makes this hook reject source you must be able to commit:
+            # x-ndjson blocked a .jsonl metrics series that `ws sync` rewrites on
+            # every run. Listed explicitly rather than widening to application/*,
+            # which would gut the check — a real binary must still fail.
+            text/*|application/json|application/x-ndjson|application/xml|application/x-sh|application/javascript|application/ecmascript|application/toml|inode/x-empty) ;;
             *) echo "binary file staged: $file ($mime)" >&2; exit 1 ;;
           esac
         done < "$tmpfiles"
@@ -115,7 +120,7 @@ pre-commit:
         [ -z "$wf" ] && exit 0
         command -v python3 >/dev/null 2>&1 || exit 0
         command -v curl >/dev/null 2>&1 || exit 0
-        base="https://raw.githubusercontent.com/FelipeFuhr/ffreis-platform-ci-local/main/scripts"
+        base="https://raw.githubusercontent.com/ffreis-org/ffreis-platform-ci-local/main/scripts"
         tmp=$(mktemp -d)
         trap 'rm -rf "$tmp"' EXIT
         curl -fsSL "$base/ci-local-drift.py" -o "$tmp/d.py" 2>/dev/null \

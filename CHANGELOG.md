@@ -1,5 +1,53 @@
 # Changelog
 
+## [1.8.0](https://github.com/FelipeFuhr/ffreis-platform-standards/compare/v1.7.4...v1.8.0) (2026-07-29)
+
+
+### Features
+
+* add ci and tooling ([#1](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/1)) ([aa1c9d9](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/aa1c9d9ce5c956a52f027b3ead76601ee67387a8))
+* add lefthook bootstrap script and hook scripts ([#9](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/9)) ([1b8d074](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/1b8d074407bae32498110c98fd09f1e41f8fe99e))
+* add renovate presets, lefthook remotes, golangci template ([b70c99f](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/b70c99fdf3a180d01c2dbbbd618edaa8e2fcda75))
+* **ci-local:** --findings mode — capture act SARIF locally, report + classify ([#48](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/48)) ([053902a](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/053902a46da02d0500f297c06f5ba697f247adc7))
+* **ci-local:** self-bootstrap ci-local-findings.py so --findings needs no Makefile change ([#50](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/50)) ([45def9f](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/45def9fbc75fe40ad2ce40a65501b830868f250a))
+* **flags:** promote canonical flag-registry schema from heavy-heater ([#76](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/76)) ([db4fe39](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/db4fe3919f55cdabd0e6bd6d5d4ec0ff00ebdea9))
+* **hooks:** add lefthook/kotlin.yml and lefthook/swift.yml ([#64](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/64)) ([e651c67](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/e651c6790984167ba5f275037e363597240617e1))
+* **hooks:** call pre-commit via lefthook when .pre-commit-config.yaml exists ([#62](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/62)) ([3d98c9a](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/3d98c9aa580e1c43ebebaa0cbceffa63626aba8b))
+* **lefthook:** add complex + release heavy-check tiers ([#40](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/40)) ([ca35654](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/ca3565422a40f059da455f1b4f0877e4c7d59412))
+* **lefthook:** pre-commit drift gate on workflow changes ([#51](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/51)) ([d030561](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/d030561668dea4370fb8d8cafc80b5fbd763d012))
+* platform leveling improvements ([#8](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/8)) ([9ad0451](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/9ad0451bce4b1137c301e53f0745a81fa1ab0281))
+* **renovate:** track PLATFORM_STANDARDS_SHA in Makefiles + lefthook.yml ([#29](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/29)) ([eecb45b](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/eecb45b907e5fbcf35625581fb8b350a50000a72))
+* **renovate:** track the ffreis-platform-ci-local tag pin ([#53](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/53)) ([3558b6a](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/3558b6a1a5c4982c0e66241ac5a289dbd0a7fb64))
+* **scripts:** add act installer and local CI runner ([#14](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/14)) ([d939d38](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/d939d383ea83f95d94df0f0e7b89093da72ba08f))
+* **workspace:** parallel-session safety hooks, actionlint/hadolint pre-commit, drift audit ([#31](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/31)) ([4f0aac0](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/4f0aac0ef2a6ff854c8bb8666091ec94e15f9e7c))
+* **workspace:** version-track workspace-root AGENTS.md and CLAUDE.md ([#20](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/20)) ([b7503af](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/b7503af83f242f127d0fee970b1844f896fd15f3))
+
+
+### Bug Fixes
+
+* **ci:** add release-please config and finalize semantic-pr SHA ([#6](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/6)) ([29c2089](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/29c2089f4e291ea9d4240fb6d5df06114ee7cfa1))
+* **ci:** fix release-please permissions and remove osv job ([#4](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/4)) ([25bc755](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/25bc755ee8bc686fb853de6281cede2e0a88a160))
+* **ci:** fix workflow errors ([#5](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/5)) ([ddb00b2](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/ddb00b20cee1a0b5215818a15b9d234c45db69ad))
+* **ci:** install PyYAML before YAML validation step ([aa1c9d9](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/aa1c9d9ce5c956a52f027b3ead76601ee67387a8))
+* **ci:** pin ffreis-workflows-general to v1.7.0 ([#70](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/70)) ([700f54d](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/700f54d4c206cb69c729fe5f02e73553505ee778))
+* **grype:** bump workflows-general SHA to prevent self-scan CVEs ([#43](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/43)) ([4268f2c](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/4268f2c460dfbb981de16a515509941d9e0cfe62))
+* **lefthook:** actionlint-workflows hook errors on staged deletions ([#74](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/74)) ([5ab6640](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/5ab664049219ed3b8e3ac1ed7a9164f109a5e5e4))
+* **lefthook:** allow application/javascript and application/ecmascript MIME types ([#72](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/72)) ([17ee8a9](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/17ee8a97a4a2e5ea69025d9eb7e4224589a10a44))
+* **lefthook:** drop pipefail from inline run blocks for sh portability ([#13](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/13)) ([6e89ee5](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/6e89ee5d2b4b8dcace865bb8c3e29a867c4b86eb))
+* **lefthook:** make hygiene-* blocks POSIX-portable ([#16](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/16)) ([dd3256b](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/dd3256b73ccdc3cc53e46c0bcae3a7b4f5e1e817))
+* **lefthook:** make hygiene-* exit 0 on the clean path ([#18](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/18)) ([618855b](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/618855b2fba2f356e76ccd35634828e8a8508150))
+* **lefthook:** make secret-scan graceful (make→gitleaks fallback→skip) ([#66](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/66)) ([93cacb8](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/93cacb88f43b4ff22161dca81117b2491c3ee3a5))
+* **lefthook:** repoint ci-local-drift fetch at ffreis-org ([#81](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/81)) ([51e525d](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/51e525da7570f1c091957e86bfb1f5f0b4a48830))
+* **lefthook:** stop hygiene-binary-files rejecting plainly-textual sources ([#85](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/85)) ([438afd1](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/438afd1a6827e893b600295a66258e46eeb0ee91))
+* **run-ci-local:** auto-detect rootless podman socket, clearer extras-file banner ([#22](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/22)) ([4c66097](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/4c660973c65eec09ece111ea1047100786be16bc))
+
+## [1.7.4](https://github.com/ffreis-org/ffreis-platform-standards/compare/v1.7.3...v1.7.4) (2026-07-18)
+
+
+### Bug Fixes
+
+* **lefthook:** repoint ci-local-drift fetch at ffreis-org ([#81](https://github.com/ffreis-org/ffreis-platform-standards/issues/81)) ([51e525d](https://github.com/ffreis-org/ffreis-platform-standards/commit/51e525da7570f1c091957e86bfb1f5f0b4a48830))
+
 ## [1.7.3](https://github.com/FelipeFuhr/ffreis-platform-standards/compare/v1.7.2...v1.7.3) (2026-07-02)
 
 

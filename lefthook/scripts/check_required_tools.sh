@@ -45,4 +45,12 @@ for tool in "$@"; do
   missing=1
 done
 
-return "$missing"
+# scan-fix(bash:top-level-return): `exit`, not `return` — this script is
+# EXECUTED by consumers (e.g. `./scripts/hooks/check_required_tools.sh $(GOFMT)`
+# in a Makefile), never sourced. `return` outside a function/sourced script is
+# a hard bash error ("return: can only `return' from a function or sourced
+# script"), so every invocation died before checking anything — the fmt/lint
+# gate silently never ran. Confirmed no fleet consumer sources this file
+# (all invoke it as `./scripts/hooks/check_required_tools.sh` or
+# `"${SCRIPT_DIR}/check_required_tools.sh"`), so `exit` is safe everywhere.
+exit "$missing"
