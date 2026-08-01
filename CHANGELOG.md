@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.9.0](https://github.com/FelipeFuhr/ffreis-platform-standards/compare/v1.8.0...v1.9.0) (2026-08-01)
+
+
+### Features
+
+* **lefthook:** add ansible.yml shared config ([#78](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/78)) ([9f60788](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/9f607886fec75e332773f9c0137a9b8e9b6b09da))
+
+
+### Bug Fixes
+
+* use exit not return in check_required_tools.sh ([#86](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/86)) ([750f106](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/750f106efccce10e1bf95f99695e329bf808cd21))
+
 ## [1.8.0](https://github.com/FelipeFuhr/ffreis-platform-standards/compare/v1.7.4...v1.8.0) (2026-07-29)
 
 
