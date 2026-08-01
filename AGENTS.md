@@ -99,6 +99,7 @@ Available shared configs:
 - `lefthook/python.yml` — fmt-check (Python glob); `complex`: lint (ruff+mypy) + test/coverage; `release`: mutation
 - `lefthook/rust.yml` — fmt-check (Rust glob); `complex`: lint (clippy) + test + sec; `release`: release-build + mutation
 - `lefthook/terraform.yml` — fmt-check + tflint lint (Terraform glob); `complex`: validate; `release`: plan + sec (tfsec)
+- `lefthook/ansible.yml` — yamllint (Ansible dirs: `ansible/`, `playbooks/`, `roles/`); `complex`: lint (ansible-lint); `release`: dry-run + sec (ansible-lint --profile production)
 - `lefthook/actionlint.yml` — actionlint on GitHub Actions workflows (optional, add for repos with significant workflow files)
 
 ### Simple vs complex/release tiers
