@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.10.0](https://github.com/FelipeFuhr/ffreis-platform-standards/compare/v1.9.0...v1.10.0) (2026-08-07)
+
+
+### Features
+
+* **lefthook:** add integration-coverage-gate to complex tier ([#88](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/88)) ([42fa613](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/42fa6136b1eef249850fe63eacf3b2548a052681))
+
 ## [1.9.0](https://github.com/FelipeFuhr/ffreis-platform-standards/compare/v1.8.0...v1.9.0) (2026-08-01)
 
 
