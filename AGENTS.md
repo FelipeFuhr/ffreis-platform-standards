@@ -95,9 +95,9 @@ overrides when it genuinely diverges (e.g. a chdir for a non-standard layout).
 
 Available shared configs:
 - `lefthook/base.yml` — hygiene (merge markers, large files, binary files) + secret-scan + agents-drift-hint + commit-msg (ALL repos); plus the `complex`/`release` heavy tiers (see below)
-- `lefthook/go.yml` — go-mod-drift + fmt-check + lint; `complex`: quality-gates; `release`: cross-build + mutation + fuzz
-- `lefthook/python.yml` — fmt-check (Python glob); `complex`: lint (ruff+mypy) + test/coverage; `release`: mutation
-- `lefthook/rust.yml` — fmt-check (Rust glob); `complex`: lint (clippy) + test + sec; `release`: release-build + mutation
+- `lefthook/go.yml` — go-mod-drift + fmt-check + lint; `complex`: quality-gates + integration-coverage; `release`: cross-build + mutation + fuzz
+- `lefthook/python.yml` — fmt-check (Python glob); `complex`: lint (ruff+mypy) + test/coverage + integration-coverage; `release`: mutation
+- `lefthook/rust.yml` — fmt-check (Rust glob); `complex`: lint (clippy) + test + sec + integration-coverage; `release`: release-build + mutation
 - `lefthook/terraform.yml` — fmt-check + tflint lint (Terraform glob); `complex`: validate; `release`: plan + sec (tfsec)
 - `lefthook/ansible.yml` — yamllint (Ansible dirs: `ansible/`, `playbooks/`, `roles/`); `complex`: lint (ansible-lint); `release`: dry-run + sec (ansible-lint --profile production)
 - `lefthook/actionlint.yml` — actionlint on GitHub Actions workflows (optional, add for repos with significant workflow files)
@@ -120,12 +120,17 @@ local git hooks and by CI (via `general-lefthook.yml`):
   **minor or major** bump (`quality-kit/scripts/semver-bump.sh` decides). Invoke with
   `lefthook run release --all-files`.
 
-Every `complex`/`release` command delegates to a Makefile target and **skips gracefully**
-when that target is absent (a `make -n <target>` existence probe), so repos can adopt the
-tiers incrementally — a missing `mutation`/`coverage`/`build-all` target prints `skip:`
-and the group keeps going. A target that *exists and fails* fails the group (so the
-`/ready` gate blocks). There is intentionally **no `pre-push` standard** — in the
-draft-first flow pushes are frequent; heavy work belongs at the promotion gate.
+Every `complex`/`release` command delegates to a Makefile target, and since #62 **every
+referenced target is REQUIRED** — adding a language's config to a repo's lefthook
+`remotes:` is a commitment that the repo implements every target that config's tiers
+call (`quality-gates`/`mutation`/`coverage-gate`/`integration-coverage-gate`/`build-all`/
+etc., depending on language). There is no `make -n <target>` skip probe anymore: a
+missing target fails the group with "No rule to make target" the same as a target that
+*exists and fails*, blocking `/ready`. Repos pin a specific `ref:` SHA/tag, so this only
+bites when a repo deliberately bumps its pin — **implement every target the new tier
+calls in the same PR that bumps the pin**, don't bump and hope. There is intentionally
+**no `pre-push` standard** — in the draft-first flow pushes are frequent; heavy work
+belongs at the promotion gate.
 
 **Staged vs `--all-files` (important, non-obvious):** the `base.yml` simple hooks read the
 git *index* (`git diff --cached`), so `--all-files` is a no-op for them. CI achieves
@@ -149,22 +154,30 @@ remotes:
 
 ## Coverage and test-type standards
 
-Fleet-wide minimums (enforced via `make coverage-gate` in the `complex` lefthook tier):
+Fleet-wide minimums — **both unit and integration coverage are gated separately, each at
+the same floor** (enforced via `make coverage-gate` and `make integration-coverage-gate`
+in the `complex` lefthook tier):
 
-| Language | Min coverage | Tool | Integration tests | Property tests | Mutation threshold |
-|---|---|---|---|---|---|
-| Go | 75% | `go test -coverprofile` + `check_coverage_gate.sh` | `//go:build integration` test files for service-boundary code | optional | 60% (gremlins) |
-| Rust | 75% | cargo-llvm-cov (line coverage) | `tests/` per crate for service ports | proptest recommended | 60% (cargo-mutants) |
-| Python | 75% (branch) | pytest-cov (`fail_under`) | separate `tests/integration/` | hypothesis recommended | 60% (mutmut) |
+| Language | Min unit coverage | Min integration coverage | Tool | Integration test convention | Property tests | Mutation threshold |
+|---|---|---|---|---|---|---|
+| Go | 75% | 75% | `go test -coverprofile` + `check_coverage_gate.sh` | `//go:build integration` test files, own `-coverprofile` run for `integration-coverage-gate` | optional | 60% (gremlins) |
+| Rust | 75% | 75% | cargo-llvm-cov (line coverage) | `tests/` per crate for service ports, own `cargo llvm-cov` invocation for `integration-coverage-gate` | proptest recommended | 60% (cargo-mutants) |
+| Python | 75% (branch) | 75% (branch) | pytest-cov (`fail_under`) | separate `tests/integration_tests/`, own `--cov-fail-under` invocation for `integration-coverage-gate` | hypothesis recommended | 60% (mutmut) |
 
-New repos must set a `coverage-gate` Makefile target that enforces at least the floor above.
-The Copier project templates include this target by default.
+New repos must set `coverage-gate` and `integration-coverage-gate` Makefile targets that
+each enforce at least the floor above; a repo with no integration-test surface at all
+(pure library, no service boundary) may define `integration-coverage-gate` as a no-op
+that says so explicitly — it must still exist, since #62 (see "Simple vs
+complex/release tiers" above) a *missing* target fails the tier exactly like a failing
+one. A repo already enforcing a stricter floor (e.g. 90%) keeps its stricter number;
+never lower an existing floor to match this one.
 
-Mutation testing runs in the `release` tier only — it is expensive and scheduled (weekly CI),
-not a pre-push gate. A missing `mutation` target is a graceful skip, not a failure.
-
-The complex tier's `coverage` command (rust.yml) and `quality-gates` target (go.yml) both
-skip gracefully when the Makefile target is absent — adopt incrementally.
+Mutation testing runs in the `release` tier only — it is expensive and scheduled (weekly
+CI), not a pre-push gate. Per the point above, a missing `mutation` target now **fails**
+the `release` tier rather than skipping — repos consuming `release`-tier config must
+implement it in the same PR that adopts/bumps that config, using the "mutation threshold"
+column above (a *mutant-kill-rate* target, unrelated to the unit/integration coverage
+floors — do not conflate the two metrics).
 
 ## Async event flows — convention
 
