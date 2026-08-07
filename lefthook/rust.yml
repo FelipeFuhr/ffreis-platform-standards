@@ -25,6 +25,9 @@ complex:
     coverage:
       glob: "**/*.rs"
       run: make coverage-gate
+    integration-coverage:
+      glob: "**/*.rs"
+      run: make integration-coverage-gate
 
 release:
   parallel: false

@@ -45,6 +45,9 @@ complex:
     quality-gates:
       glob: "**/*.{go,mod,sum}"
       run: make quality-gates
+    integration-coverage:
+      glob: "**/*.go"
+      run: make integration-coverage-gate
 
 release:
   parallel: false

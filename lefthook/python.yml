@@ -19,6 +19,9 @@ complex:
     test:
       glob: "**/*.py"
       run: make coverage
+    integration-coverage:
+      glob: "**/*.py"
+      run: make integration-coverage-gate
 
 release:
   parallel: false
