@@ -501,7 +501,11 @@ on:
 ```
 
 Workflows that must always run (release, scheduled drift, scorecards, etc.) keep no
-path filter. If a workflow has a `merge_group:` trigger, mirror the same paths there.
+path filter. **`merge_group:` cannot carry a `paths`/`paths-ignore` filter at all** —
+GitHub Actions only supports path filtering on `push`, `pull_request`, and
+`pull_request_target` (`actionlint` rejects it on `merge_group`, confirmed against
+`ffreis-project-templates` PR #64). A workflow with a `merge_group:` trigger runs
+unconditionally on merge-queue checks regardless of what changed.
 
 ### Reusable workflows (devops/ffreis-workflows-*)
 
