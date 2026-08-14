@@ -20,6 +20,10 @@ pre-commit:
         # process substitution (`< <(...)`) and `read -d ''` aren't available.
         # Use a temp file fed from `git diff -z | tr` to stay POSIX.
         MAX_BYTES=$((500 * 1024))
+        # Dependency lockfiles are generated source and can legitimately exceed
+        # the general source-file ceiling. Retain a bounded, explicit exception
+        # rather than making dependency updates uncommittable.
+        MAX_LOCKFILE_BYTES=$((1024 * 1024))
         tmpfiles=$(mktemp)
         trap 'rm -f "$tmpfiles"' EXIT
         git diff --cached --name-only -z | tr '\0' '\n' > "$tmpfiles"
@@ -28,7 +32,15 @@ pre-commit:
           [ -n "$file" ] || continue
           [ -f "$file" ] || continue
           size=$(git cat-file -s ":$file" 2>/dev/null || echo 0)
-          if [ "$size" -gt "$MAX_BYTES" ]; then
+          case "$file" in
+            *.lock|package-lock.json)
+              max_bytes=$MAX_LOCKFILE_BYTES
+              ;;
+            *)
+              max_bytes=$MAX_BYTES
+              ;;
+          esac
+          if [ "$size" -gt "$max_bytes" ]; then
             echo "large file ($((size / 1024)) KB): $file" >&2
             exit 1
           fi
