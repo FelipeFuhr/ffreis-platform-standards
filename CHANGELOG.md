@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.10.1](https://github.com/FelipeFuhr/ffreis-platform-standards/compare/v1.10.0...v1.10.1) (2026-08-14)
+
+
+### Bug Fixes
+
+* **docs:** merge_group cannot carry a path filter ([#90](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/90)) ([621c71e](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/621c71e757f5d6b0e0fb2cde9d589ecbbe9a664e))
+* **hooks:** allow bounded dependency lockfiles ([#93](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/93)) ([78fd9d4](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/78fd9d4e3c20dc86c8879e7713dc391bce65dbd5))
+
 ## [1.10.0](https://github.com/FelipeFuhr/ffreis-platform-standards/compare/v1.9.0...v1.10.0) (2026-08-07)
 
 
