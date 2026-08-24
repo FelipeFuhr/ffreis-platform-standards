@@ -179,6 +179,44 @@ implement it in the same PR that adopts/bumps that config, using the "mutation t
 column above (a *mutant-kill-rate* target, unrelated to the unit/integration coverage
 floors — do not conflate the two metrics).
 
+### cargo-mutants blind spot: `new()` constructors are never mutated
+
+cargo-mutants **unconditionally skips every `impl` method literally named `new`** —
+hard-coded in its own visitor (`src/visit.rs`: `if ... || i.sig.ident == "new" || ...
+{ return; }`). This is not a config default; no CLI flag or `mutants.toml` setting
+overrides it. Every other associated function and method — `build`, `parse`,
+`try_new`, `from_str`, `validate`, plain functions — is mutated normally; `new` alone
+is exempt, on name match, regardless of what the body does.
+
+**Consequence:** a validating constructor named `new` gets zero mutation coverage.
+If `new` rejects invalid input (bounds checks, format/charset validation, idempotency
+constraints), cargo-mutants can delete, invert, or no-op that validation and the run
+still reports the mutant as "unviable" or simply never generates it — it never shows
+up as `missed`. A crate can sit at a 100% mutation score while its constructor's
+validation logic is completely unexercised by the mutation harness. This is a fleet-
+wide, tool-level gap, not a per-repo bug — a clean cargo-mutants run says nothing
+about `new()`'s correctness, and no threshold change fixes it.
+
+Confirmed instances in this fleet (both validate real invariants that mutation
+testing cannot see): `messaging-core::NotificationRequest::new` (idempotency-key
+length/emptiness, `template_key` charset) and `storage-core::Document::new`
+(`MAX_DOCUMENT_BYTES` bounds check).
+
+**Guidance:**
+- **Prefer a non-`new` name for any constructor that carries validation logic** —
+  `parse`, `build`, or `try_new` (returning `Result`/`Option`) all get normal mutation
+  coverage where a bare `new` would not. Reserve `new` for constructors that cannot
+  fail (pure field assignment) — the blind spot is harmless there since there is no
+  validation to miss.
+- **Where an existing `new()` already carries validation and cannot be renamed
+  without a breaking API change**, do not treat that as fixed by mutation testing —
+  write unit tests that explicitly exercise every error branch (each rejection
+  condition, each boundary value) by hand. Mutation testing will never enforce these
+  branches, so their coverage is only as good as the tests a human wrote directly.
+- Renaming an existing `new()` is a breaking API change for any external caller and
+  is out of scope for a docs-only fix — decide it deliberately, per crate, with its
+  own PR.
+
 ## Async event flows — convention
 
 Two-axis decision model for every new async flow in the fleet. Full decision tables
