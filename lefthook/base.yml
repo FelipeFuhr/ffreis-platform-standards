@@ -156,13 +156,24 @@ pre-commit:
 commit-msg:
   commands:
     conventional-commits:
+      # The `!?` before the colon is Conventional Commits 1.0.0's breaking-change
+      # marker (`feat!:`, `feat(scope)!:`). It was missing, so the one commit
+      # shape that most needs to be greppable in a log — the breaking one — was
+      # the only shape this hook rejected, pushing authors to the `BREAKING
+      # CHANGE:` footer alone. release-please reads both, but only `!` shows up
+      # in a one-line `git log --oneline`.
+      #
+      # Keep this pattern in sync with scripts/test-commit-msg-pattern.sh, which
+      # extracts this very line from this file and asserts against it — it does
+      # not keep its own copy.
       run: |
         set -eu
         msg=$(head -1 "{1}")
-        pattern='^(feat|fix|docs|chore|refactor|test|ci|perf|style|build|revert)(\([a-z0-9-]+\))?: .{1,100}$'
+        pattern='^(feat|fix|docs|chore|refactor|test|ci|perf|style|build|revert)(\([a-z0-9-]+\))?!?: .{1,100}$'
         echo "$msg" | grep -qE "$pattern" || {
           echo "non-conventional commit: $msg" >&2
-          echo "expected: type: description  or  type(scope): description  [types: feat fix docs chore refactor test ci perf style build revert]" >&2
+          echo "expected: type: description  |  type(scope): description  |  type!: description (breaking)" >&2
+          echo "types: feat fix docs chore refactor test ci perf style build revert" >&2
           exit 1
         }
 
