@@ -37,4 +37,22 @@ release:
       run: make build-release
     mutation:
       glob: "**/*.rs"
-      run: make mutation
+      # DIFF-SCOPED on purpose — `make mutation-diff`, not `make mutation`.
+      #
+      # This tier fires on every branch whose commits imply a minor/major bump,
+      # i.e. every `feat:` branch. An unscoped whole-crate sweep does not fit in
+      # a promotion gate: ffreis-urbs-admin is 1,606 mutants at ~44s each, ~19
+      # hours against a ~50 minute budget, so the gate was killed on every
+      # `feat:` PR and none could be promoted. That is a function of crate SIZE,
+      # so it reaches every Rust repo eventually.
+      #
+      # Scoped to the branch's own diff the same repo measured 88 mutants in
+      # ~20 min and surfaced ten real gaps, one in the domain model. It is also
+      # the better measure: a whole-crate score is dominated by code the PR
+      # never touched, which is how a mutation gate reports a high number while
+      # measuring nothing about the change under review.
+      #
+      # The whole-crate sweep is NOT dropped — it moves to the scheduled
+      # rust-mutation.yml cron (and stays available as `make mutation` on
+      # demand). See AGENTS.md "Mutation testing: PR-time vs scheduled".
+      run: make mutation-diff

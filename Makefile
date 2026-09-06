@@ -40,7 +40,7 @@ print(f'All {len(files)} YAML configs valid.')
 endef
 export VALIDATE_YAML_PY
 
-.PHONY: help lint validate-json validate-yaml shellcheck fmt-check \
+.PHONY: help test lint validate-json validate-yaml shellcheck fmt-check \
         secrets-scan-staged lefthook-bootstrap lefthook-install hooks setup
 
 help: ## Show available targets
@@ -58,6 +58,9 @@ validate-yaml: ## Validate lefthook.yml and all lefthook/*.yml and golangci/*.ym
 	@python3 -c "$$VALIDATE_YAML_PY"
 
 fmt-check: lint validate-json validate-yaml ## Run all local validation checks
+
+test: ## Run the mutation-diff behaviour lock (hermetic; stubs cargo)
+	@bash scripts/mutation-diff-selftest.sh
 
 shellcheck: ## Lint shell scripts
 	@if command -v shellcheck >/dev/null 2>&1; then \
