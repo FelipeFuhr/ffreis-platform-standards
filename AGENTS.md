@@ -193,16 +193,32 @@ than skipping, so implement them in the same PR that adopts or bumps the config 
 > whose scorer read the wrong path and reported a clean 100% without measuring anything
 > (fixed upstream in v2.0.1). Moving the whole-crate sweep onto a schedule and off the PR
 > trigger, and bumping those pins, is the CI-side half of this change and is tracked
-> separately from the local `release`-tier fix that lands here.
+> separately from the local `release`-tier fix that lands here. A working pattern for it
+> already exists — a standalone `mutation.yml` on `cron: "0 2 * * 0"` + `workflow_dispatch`
+> — carried by open PRs on `ffreis-token-vault` (#11), `ffreis-shamir` (#13) and
+> `ml/ffreis-btc-features` (#12), unmerged since 2026-08-08. Copy that, do not reinvent it.
 
 **Why the PR gate is diff-scoped.** The `release` tier fires on every branch whose
 conventional commits imply a minor/major bump — that is every `feat:` branch. An unscoped
-whole-crate sweep does not fit in a promotion gate: `ffreis-urbs-admin` is 1,606 mutants
+whole-crate sweep does not fit in a promotion gate: `ffreis-urbs-admin` is ~1,600 mutants
 at ~44s each, ~19 hours against a ~50 minute budget. It was killed every time, so no
 `feat:` PR on that repo could be promoted at all. Nothing about that is specific to one
 branch — it is a function of crate size, and every Rust repo reaches it as it grows.
-Scoped to its own diff the same repo measured **88 mutants in ~20 minutes** and surfaced
-ten real gaps, one of them in the domain model.
+
+Measured on that repo's PR #18 branch, 2026-09-06:
+
+| | mutants | wall-clock | result |
+|---|---|---|---|
+| `make mutation` (whole crate) | **1,605** | ~19h projected | never completed |
+| `make mutation-diff` (this branch) | **91** | **41 min** | 46 caught / 12 missed / 17 timeout / 16 unviable → **79%**, passes the 70% floor |
+
+The 41 minutes were on a box under heavy concurrent load (load average ~26, several
+sibling sessions building); the 17 timeouts are an artefact of that same contention
+against `--minimum-test-timeout 60` and are excluded from the score, since no test could
+have caught them. Expect materially less on an idle machine. The run also surfaced 12
+genuinely untested mutations in the branch's own new code — which is the point: the same
+crate's whole-crate score would have been dominated by the ~1,500 mutants this PR never
+touched.
 
 Diff-scoping is also the better *measure*, not merely the cheaper one. A whole-crate score
 is dominated by code the PR never touched, which is exactly how a mutation gate reports a
