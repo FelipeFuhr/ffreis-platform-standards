@@ -73,6 +73,12 @@ jobs:
         print(f'All {len(files)} YAML config files are valid.')
         "
 
+        # The commit-msg hook's regex is the one config here that is executable
+        # rather than declarative — valid YAML says nothing about whether it
+        # accepts the right messages. This asserts against the pattern
+        # extracted from lefthook/base.yml itself.
+        bash scripts/test-commit-msg-pattern.sh
+
   # Behaviour lock for scripts/mutation-diff.sh — the PR-time mutation gate the
   # `release` lefthook tier calls. Hermetic: stubs cargo, compiles no Rust.
   # Every case is verified to FAIL when its guard is removed (see the script
