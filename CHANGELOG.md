@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.11.0](https://github.com/FelipeFuhr/ffreis-platform-standards/compare/v1.10.1...v1.11.0) (2026-09-07)
+
+
+### Features
+
+* **lefthook:** scope the release-tier mutation gate to the branch diff ([#96](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/96)) ([63b605d](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/63b605d65cf312e2de49b6c44a30d1e4259035a7))
+
+
+### Bug Fixes
+
+* **lefthook:** accept the Conventional Commits breaking-change marker ([#95](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/95)) ([626ebd2](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/626ebd26df5c55a4ef9c82a11ee608522dbcf62f))
+
 ## [1.10.1](https://github.com/FelipeFuhr/ffreis-platform-standards/compare/v1.10.0...v1.10.1) (2026-08-14)
 
 
