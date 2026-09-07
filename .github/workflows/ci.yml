@@ -79,6 +79,19 @@ jobs:
         # extracted from lefthook/base.yml itself.
         bash scripts/test-commit-msg-pattern.sh
 
+  # Behaviour lock for scripts/mutation-diff.sh — the PR-time mutation gate the
+  # `release` lefthook tier calls. Hermetic: stubs cargo, compiles no Rust.
+  # Every case is verified to FAIL when its guard is removed (see the script
+  # header); a gate whose test cannot fail is not a gate.
+  mutation-diff-selftest:
+    name: mutation-diff self-test
+    permissions:
+      contents: read
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-run-commands.yml@287f836a726a35af37bd24561fc687f66eaeb92f # v1.7.0
+    with:
+      commands: |
+        bash scripts/mutation-diff-selftest.sh
+
   shellcheck:
     name: Shell scripts
     permissions:

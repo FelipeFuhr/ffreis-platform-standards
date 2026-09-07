@@ -40,7 +40,7 @@ print(f'All {len(files)} YAML configs valid.')
 endef
 export VALIDATE_YAML_PY
 
-.PHONY: help lint validate-json validate-yaml test-hooks shellcheck fmt-check \
+.PHONY: help test lint validate-json validate-yaml test-hooks shellcheck fmt-check \
         secrets-scan-staged lefthook-bootstrap lefthook-install hooks setup
 
 help: ## Show available targets
@@ -61,6 +61,9 @@ test-hooks: ## Test the commit-msg conventional-commits pattern shipped in lefth
 	@bash scripts/test-commit-msg-pattern.sh
 
 fmt-check: lint validate-json validate-yaml test-hooks ## Run all local validation checks
+
+test: ## Run the mutation-diff behaviour lock (hermetic; stubs cargo)
+	@bash scripts/mutation-diff-selftest.sh
 
 shellcheck: ## Lint shell scripts
 	@if command -v shellcheck >/dev/null 2>&1; then \
