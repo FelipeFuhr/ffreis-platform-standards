@@ -73,6 +73,12 @@ jobs:
         print(f'All {len(files)} YAML config files are valid.')
         "
 
+        # The commit-msg hook's regex is the one config here that is executable
+        # rather than declarative — valid YAML says nothing about whether it
+        # accepts the right messages. This asserts against the pattern
+        # extracted from lefthook/base.yml itself.
+        bash scripts/test-commit-msg-pattern.sh
+
   shellcheck:
     name: Shell scripts
     permissions:

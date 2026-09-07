@@ -40,7 +40,7 @@ print(f'All {len(files)} YAML configs valid.')
 endef
 export VALIDATE_YAML_PY
 
-.PHONY: help lint validate-json validate-yaml shellcheck fmt-check \
+.PHONY: help lint validate-json validate-yaml test-hooks shellcheck fmt-check \
         secrets-scan-staged lefthook-bootstrap lefthook-install hooks setup
 
 help: ## Show available targets
@@ -57,7 +57,10 @@ validate-json: ## Validate renovate.json, renovate/*.json presets, and flags/*.j
 validate-yaml: ## Validate lefthook.yml and all lefthook/*.yml and golangci/*.yml files
 	@python3 -c "$$VALIDATE_YAML_PY"
 
-fmt-check: lint validate-json validate-yaml ## Run all local validation checks
+test-hooks: ## Test the commit-msg conventional-commits pattern shipped in lefthook/base.yml
+	@bash scripts/test-commit-msg-pattern.sh
+
+fmt-check: lint validate-json validate-yaml test-hooks ## Run all local validation checks
 
 shellcheck: ## Lint shell scripts
 	@if command -v shellcheck >/dev/null 2>&1; then \
