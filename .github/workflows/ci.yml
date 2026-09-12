@@ -79,6 +79,19 @@ jobs:
         # extracted from lefthook/base.yml itself.
         bash scripts/test-commit-msg-pattern.sh
 
+  # Guardrail for the AGENTS.md rules/reference split (see AGENTS.md § "Where
+  # the rest lives"): fails if a section the manifest maps to a reference file
+  # ever goes missing or empty, or if a .claude/rules/*.md file lacks the
+  # `paths:` frontmatter that makes it load at all.
+  lint-instructions:
+    name: AGENTS.md split guardrail
+    permissions:
+      contents: read
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-run-commands.yml@287f836a726a35af37bd24561fc687f66eaeb92f # v1.7.0
+    with:
+      commands: |
+        bash scripts/check-instructions.sh
+
   # Behaviour lock for scripts/mutation-diff.sh — the PR-time mutation gate the
   # `release` lefthook tier calls. Hermetic: stubs cargo, compiles no Rust.
   # Every case is verified to FAIL when its guard is removed (see the script

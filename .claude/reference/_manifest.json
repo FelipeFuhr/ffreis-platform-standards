@@ -1,0 +1,47 @@
+{
+  "AGENTS.md": {
+    "preamble_bytes": 157,
+    "sections": [
+      {
+        "heading": "What lives here",
+        "file": ".claude/reference/what-lives-here.md",
+        "bytes": 469
+      },
+      {
+        "heading": "Coverage and test-type standards",
+        "file": ".claude/reference/coverage-and-test-type-standards.md",
+        "bytes": 6898
+      },
+      {
+        "heading": "Async event flows — convention",
+        "file": ".claude/reference/async-event-flows-convention.md",
+        "bytes": 1582
+      },
+      {
+        "heading": "CI and versioning",
+        "file": ".claude/reference/ci-and-versioning.md",
+        "bytes": 984
+      },
+      {
+        "heading": "Workspace docs (`workspace/`)",
+        "file": ".claude/reference/workspace-docs-workspace.md",
+        "bytes": 1259
+      },
+      {
+        "heading": "Making fleet-wide changes",
+        "file": ".claude/reference/making-fleet-wide-changes.md",
+        "bytes": 246
+      },
+      {
+        "heading": "Workspace Essentials",
+        "file": ".claude/reference/workspace-essentials.md",
+        "bytes": 4940
+      },
+      {
+        "heading": "Public repo hygiene policy",
+        "file": ".claude/reference/public-repo-hygiene-policy.md",
+        "bytes": 2839
+      }
+    ]
+  }
+}

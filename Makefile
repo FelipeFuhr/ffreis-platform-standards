@@ -41,7 +41,7 @@ endef
 export VALIDATE_YAML_PY
 
 .PHONY: help test lint validate-json validate-yaml test-hooks shellcheck fmt-check \
-        secrets-scan-staged lefthook-bootstrap lefthook-install hooks setup
+        lint-instructions secrets-scan-staged lefthook-bootstrap lefthook-install hooks setup
 
 help: ## Show available targets
 	@awk 'BEGIN {FS = ":.*##"} /^[a-zA-Z_-]+:.*##/ {printf "\033[36m%-22s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -61,6 +61,9 @@ test-hooks: ## Test the commit-msg conventional-commits pattern shipped in lefth
 	@bash scripts/test-commit-msg-pattern.sh
 
 fmt-check: lint validate-json validate-yaml test-hooks ## Run all local validation checks
+
+lint-instructions: ## Verify the AGENTS.md rules/reference split hasn't silently dropped a rule
+	@bash scripts/check-instructions.sh
 
 test: ## Run the mutation-diff behaviour lock (hermetic; stubs cargo)
 	@bash scripts/mutation-diff-selftest.sh
