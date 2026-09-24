@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.11.1](https://github.com/FelipeFuhr/ffreis-platform-standards/compare/v1.11.0...v1.11.1) (2026-09-24)
+
+
+### Bug Fixes
+
+* **lefthook:** sync check_commit_msg.sh's pattern with base.yml's ([#99](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/99)) ([89ec4ae](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/89ec4aeced933963917c1c4871299f3cc4f7bee8))
+
 ## [1.11.0](https://github.com/FelipeFuhr/ffreis-platform-standards/compare/v1.10.1...v1.11.0) (2026-09-07)
 
 
