@@ -60,6 +60,35 @@ if [[ "$have_outcomes" -eq 0 ]]; then
   exit 1
 fi
 
+# A failed UNMUTATED BASELINE leaves exactly the evidence a healthy "nothing to
+# mutate" run leaves: mutants.out/ present, all four outcome files present and
+# EMPTY, no mutants generated. Both guards above therefore pass it, and the
+# `total -eq 0` branch below then reports it as a pass. Only outcomes.json says
+# which happened.
+#
+# Measured, not hypothetical: ffreis-flowgraph-engine's gate reported success
+# while testing ZERO mutants from B3 until 2026-09-28, because four of its tests
+# read the repository's own directory and cargo-mutants copies the tree WITHOUT
+# .git. `cargo mutants` exits 4 in this case, but every caller reaches this
+# script through a Makefile recipe that discards the exit code on purpose (it is
+# also non-zero when mutants merely survive), so the code is not available here.
+#
+# The whitespace-tolerant match is deliberate; if cargo-mutants ever stops
+# pretty-printing, this degrades to the previous behaviour rather than to a
+# false failure. The workflow half of this check keys on the exit code instead —
+# see ffreis-workflows-rust's rust-mutation.yml, kept in step with this file.
+if [[ -f "${out_dir}/outcomes.json" ]] &&
+  grep -E -A1 '"scenario"[[:space:]]*:[[:space:]]*"Baseline"' "${out_dir}/outcomes.json" 2>/dev/null |
+    grep -E -q '"summary"[[:space:]]*:[[:space:]]*"Failure"'; then
+  echo "ERROR: the unmutated baseline FAILED, so no mutants were generated and" >&2
+  echo "       nothing was measured. ${out_dir}/ and its four outcome files exist" >&2
+  echo "       but are empty, which is why the guards above do not catch it." >&2
+  echo "       This is a harness failure, not a passing run." >&2
+  echo "       Fix the failing tests in a copy of the tree WITHOUT .git -- that is" >&2
+  echo "       what cargo-mutants tests. See ${out_dir}/outcomes.json." >&2
+  exit 1
+fi
+
 count_lines() {
   if [[ -f "$1" ]]; then
     # grep -c exits 1 on zero matches; that is a count, not an error.
