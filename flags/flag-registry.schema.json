@@ -7,6 +7,10 @@
   "required": ["version", "flags"],
   "additionalProperties": false,
   "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Points back at this file. `additionalProperties: false` used to reject it, which made the exact registry skeleton documented in .claude/rules/flag-registry-schema.md fail validation — and since nothing in the fleet ran the validator, nobody found out."
+    },
     "version": { "type": "integer", "const": 1 },
     "project": { "type": "string", "description": "Repo/site name this registry governs." },
     "flags": { "type": "array", "items": { "$ref": "#/$defs/flag" } }

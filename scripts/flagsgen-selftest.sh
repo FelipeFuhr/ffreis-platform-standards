@@ -13,6 +13,8 @@
 #   4. `check` fails when the registry moves and the projection does not
 #   5. `validate` rejects an adapter flag whose default is not the cheapest option
 #   6. an explicit `env` overrides the uppercased-name derivation
+#   7. the `$schema` key the rule doc tells authors to write is accepted
+#      (it was not, and the emitted JS must not carry it into the browser)
 
 set -euo pipefail
 
@@ -31,6 +33,7 @@ pass() { printf '  ok  %s\n' "$*"; }
 
 cat >"$TMP/flags.json" <<'JSON'
 {
+  "$schema": "https://raw.githubusercontent.com/FelipeFuhr/ffreis-platform-standards/main/flags/flag-registry.schema.json",
   "version": 1,
   "project": "selftest",
   "flags": [
@@ -136,6 +139,11 @@ if python3 -c 'import jsonschema' 2>/dev/null; then
     fail "an adapter defaulting to the expensive option passed validation"
   fi
   pass "validate rejects an adapter flag that does not default to the cheapest option"
+  grep -q '"\$schema"' "$TMP/flags.json" || fail "selftest registry lost its \$schema key"
+  pass "a registry carrying the documented \$schema key validates"
+  grep -q '"\$schema"' "$TMP/flags.js" &&
+    fail "the schema URL was inlined into the browser bundle; strip it in emit-js"
+  pass "emit-js strips \$schema — the browser has no use for a validator URL"
 else
   printf '  SKIP validate cases: jsonschema is not installed (pip install jsonschema)\n'
 fi
