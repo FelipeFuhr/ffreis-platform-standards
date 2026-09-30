@@ -65,8 +65,9 @@ fmt-check: lint validate-json validate-yaml test-hooks ## Run all local validati
 lint-instructions: ## Verify the AGENTS.md rules/reference split hasn't silently dropped a rule
 	@bash scripts/check-instructions.sh
 
-test: ## Run the mutation-diff behaviour lock (hermetic; stubs cargo)
+test: ## Run the hermetic behaviour locks (mutation-diff; flagsgen)
 	@bash scripts/mutation-diff-selftest.sh
+	@bash scripts/flagsgen-selftest.sh
 
 shellcheck: ## Lint shell scripts
 	@if command -v shellcheck >/dev/null 2>&1; then \

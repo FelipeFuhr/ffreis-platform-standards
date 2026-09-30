@@ -56,6 +56,11 @@
           "type": "string",
           "description": "The ONE code location where this flag is read. Invariant: one flag -> one seam. Absent only for pure build-input compile flags."
         },
+        "env": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]*$",
+          "description": "Environment variable this flag is read from. Optional: defaults to the flag's name uppercased. Declare it explicitly when the variable already ships under a prefixed name (MARKFORGE_DETECTOR_API_BASE for detector_api_base) so the generated resolver and the deployed service cannot disagree. flags/flagsgen.py projects this into the env/build config."
+        },
         "scope": {
           "enum": ["env", "session", "user", "global"],
           "default": "session",
