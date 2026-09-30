@@ -15,6 +15,11 @@
 #   6. an explicit `env` overrides the uppercased-name derivation
 #   7. the `$schema` key the rule doc tells authors to write is accepted
 #      (it was not, and the emitted JS must not carry it into the browser)
+#   8. the emitted resolver BEHAVES correctly when executed against a stub DOM
+#      (scripts/lib/flagsgen-behaviour.js) -- above all, that a production host
+#      ignores a stored override. Everything before this asserts structure, and
+#      structure cannot distinguish a working resolver from one that resolves
+#      the wrong value.
 
 set -euo pipefail
 
@@ -38,7 +43,7 @@ cat >"$TMP/flags.json" <<'JSON'
   "project": "selftest",
   "flags": [
     {
-      "name": "widget_store",
+      "name": "detector_store",
       "kind": "adapter",
       "category": "data",
       "binding": "runtime",
@@ -48,6 +53,19 @@ cat >"$TMP/flags.json" <<'JSON'
       "seam": "src/store.rs",
       "scope": "env",
       "description": "selftest adapter"
+    },
+    {
+      "name": "detector_backend",
+      "kind": "adapter",
+      "category": "api",
+      "binding": "runtime",
+      "effect": "route",
+      "options": ["mock", "engine"],
+      "default": "mock",
+      "seam": "src/detect.rs",
+      "scope": "env",
+      "cost_guard": true,
+      "description": "selftest api adapter"
     },
     {
       "name": "widget_api_base",
@@ -97,7 +115,7 @@ pass "overrides are applied synchronously, before the single deferred DOM mount"
 
 # 2. Generated, not hand-written: the executable body must not name any flag.
 body=$(sed -n '/^(function (global, doc)/,$p' "$TMP/flags.js")
-for name in widget_store widget_api_base heavy_thing; do
+for name in detector_store detector_backend widget_api_base heavy_thing; do
   printf '%s' "$body" | grep -q "$name" &&
     fail "emitted JS body hardcodes the flag name '$name' instead of iterating the registry"
 done
@@ -126,7 +144,7 @@ grep -q '^PREFIXED_WIDGET_API_BASE=' "$TMP/flags.env" ||
   fail "explicit env name was not honoured in the env projection"
 grep -q '^WIDGET_API_BASE=' "$TMP/flags.env" &&
   fail "derived env name leaked despite an explicit env field"
-grep -q '^WIDGET_STORE=memory$' "$TMP/flags.env" ||
+grep -q '^DETECTOR_STORE=memory$' "$TMP/flags.env" ||
   fail "derived env name / guarded default missing from the env projection"
 pass "env names: explicit wins, otherwise derived from the flag name"
 
@@ -139,13 +157,30 @@ if python3 -c 'import jsonschema' 2>/dev/null; then
     fail "an adapter defaulting to the expensive option passed validation"
   fi
   pass "validate rejects an adapter flag that does not default to the cheapest option"
-  grep -q '"\$schema"' "$TMP/flags.json" || fail "selftest registry lost its \$schema key"
+  # The literal text `"$schema"`. Written with escapes rather than single
+  # quotes so shellcheck does not read it as an unexpanded expansion (SC2016) --
+  # it is a JSON key name, not a shell variable.
+  schema_key="\"\$schema\""
+  grep -qF "$schema_key" "$TMP/flags.json" ||
+    fail "selftest registry lost its \$schema key"
   pass "a registry carrying the documented \$schema key validates"
-  grep -q '"\$schema"' "$TMP/flags.js" &&
+  grep -qF "$schema_key" "$TMP/flags.js" &&
     fail "the schema URL was inlined into the browser bundle; strip it in emit-js"
   pass "emit-js strips \$schema — the browser has no use for a validator URL"
 else
   printf '  SKIP validate cases: jsonschema is not installed (pip install jsonschema)\n'
+fi
+
+# 8. Behaviour, not just structure. The checks above cannot tell a working
+#    resolver from one that resolves the wrong value -- and the claim that
+#    matters most (a production host IGNORES a stored override) is invisible to
+#    any amount of source inspection.
+if command -v node >/dev/null 2>&1; then
+  node "$REPO_ROOT/scripts/lib/flagsgen-behaviour.js" "$TMP/flags.js" ||
+    fail "the emitted resolver does not behave as documented"
+  pass "emitted resolver behaves correctly (defaults, dev/prod gating, overrides, reset)"
+else
+  printf '  SKIP behaviour cases: node is not installed\n'
 fi
 
 printf 'flagsgen selftest: PASS\n'
