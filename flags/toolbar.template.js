@@ -32,10 +32,7 @@
 
   function isDevHost(host) {
     if (!host) { return true; }               // file:// — a local checkout
-    for (var i = 0; i < DEV_HOSTS.length; i++) {
-      if (hostMatches(host, DEV_HOSTS[i])) { return true; }
-    }
-    return false;
+    return DEV_HOSTS.some(function (rule) { return hostMatches(host, rule); });
   }
 
   function lsGet(key) {
@@ -50,12 +47,15 @@
   }
 
   function declaredDefault(flag) {
-    return typeof flag.default === 'boolean' ? String(flag.default) : String(flag.default);
+    // Route options and scalar values (including booleans) stringify the same
+    // way, and every consumer wants a string: localStorage stores strings, and
+    // the env projection writes strings.
+    return String(flag.default);
   }
 
   function accepts(flag, value) {
     if (flag.effect === 'route') {
-      return (flag.options || []).indexOf(value) !== -1;
+      return (flag.options || []).includes(value);
     }
     return value === 'true' || value === 'false';
   }
@@ -65,16 +65,14 @@
   // for exactly the reason in the banner above.
   function ingestQueryOverrides(flags, search) {
     if (!search || search.length < 2) { return; }
-    var parts = search.slice(1).split('&');
-    for (var i = 0; i < parts.length; i++) {
-      var eq = parts[i].indexOf('=');
+    for (var part of search.slice(1).split('&')) {
+      var eq = part.indexOf('=');
       if (eq < 0) { continue; }
-      var rawKey = decodeURIComponent(parts[i].slice(0, eq).replace(/\+/g, ' '));
-      if (rawKey.indexOf(QUERY_PREFIX) !== 0) { continue; }
+      var rawKey = decodeURIComponent(part.slice(0, eq).replaceAll('+', ' '));
+      if (!rawKey.startsWith(QUERY_PREFIX)) { continue; }
       var target = rawKey.slice(QUERY_PREFIX.length);
-      var rawValue = decodeURIComponent(parts[i].slice(eq + 1).replace(/\+/g, ' '));
-      for (var f = 0; f < flags.length; f++) {
-        var flag = flags[f];
+      var rawValue = decodeURIComponent(part.slice(eq + 1).replaceAll('+', ' '));
+      for (var flag of flags) {
         if (target !== flag.name && target !== flag.category + '.' + flag.name) { continue; }
         if (accepts(flag, rawValue)) { lsSet(storageKey(flag), rawValue); }
       }
@@ -95,9 +93,9 @@
     var flags = registry.flags || [];
     var byName = {};
     var values = {};
-    for (var i = 0; i < flags.length; i++) {
-      byName[flags[i].name] = flags[i];
-      values[flags[i].name] = resolveOne(flags[i], devHost);
+    for (var flag of flags) {
+      byName[flag.name] = flag;
+      values[flag.name] = resolveOne(flag, devHost);
     }
     return {
       project: registry.project,
@@ -106,7 +104,7 @@
       values: values,
       /** Active value of a flag, as a string. Empty string if undeclared. */
       get: function (name) {
-        return Object.prototype.hasOwnProperty.call(values, name) ? values[name] : '';
+        return Object.hasOwn(values, name) ? values[name] : '';
       },
       /** True iff a toggle/gate flag is on. */
       on: function (name) { return this.get(name) === 'true'; },
@@ -116,7 +114,7 @@
       },
       /** Ordered options (least-real -> most-real) of a route flag. */
       optionsOf: function (name) {
-        return byName[name] && byName[name].options ? byName[name].options.slice() : [];
+        return byName[name]?.options ? byName[name].options.slice() : [];
       },
       /** Persist a dev override. No-op on a production host. */
       set: function (name, value) {
@@ -136,11 +134,9 @@
       },
       /** The env-var line a server needs to match the current dials. */
       envLine: function () {
-        var out = [];
-        for (var i = 0; i < flags.length; i++) {
-          out.push(flags[i].env + '=' + values[flags[i].name]);
-        }
-        return out.join('\n');
+        return flags.map(function (flag) {
+          return flag.env + '=' + values[flag.name];
+        }).join('\n');
       }
     };
   }
@@ -153,10 +149,8 @@
   // per-feature switch" rule the registry itself follows.
   // ---------------------------------------------------------------------
   function applyGates(api, root) {
-    var nodes = (root || doc).querySelectorAll('[data-flag-gate]');
-    for (var i = 0; i < nodes.length; i++) {
-      var name = nodes[i].getAttribute('data-flag-gate');
-      nodes[i].hidden = !api.on(name);
+    for (var node of (root || doc).querySelectorAll('[data-flag-gate]')) {
+      node.hidden = !api.on(node.dataset.flagGate);
     }
   }
 
@@ -164,7 +158,9 @@
   // Toolbar. Built by iterating the registry — no flag is named here.
   // Styles are injected only on a dev host so a production page ships
   // neither the panel nor its CSS. rem units and flex only (frontend
-  // contract); no innerHTML anywhere (every node is createElement).
+  // contract); every node is built with createElement + textContent, never by
+  // assigning an HTML string, so a strict frontend contract check passes and
+  // no registry description can become markup.
   // ---------------------------------------------------------------------
   var STYLE = [
     '.mf-devbar{position:fixed;right:1rem;bottom:1rem;z-index:99999;display:flex;',
@@ -205,15 +201,15 @@
     doc.head.appendChild(style);
 
     var bar = el('aside', 'mf-devbar');
-    bar.setAttribute('data-collapsed', lsGet('dev.toolbar.collapsed') === 'false' ? 'false' : 'true');
+    bar.dataset.collapsed = lsGet('dev.toolbar.collapsed') === 'false' ? 'false' : 'true';
     bar.setAttribute('aria-label', 'Dev flag toolbar');
 
     var toggle = el('button', 'mf-devbar-toggle', 'flags (' + (api.registry.flags || []).length + ')');
     toggle.type = 'button';
     toggle.addEventListener('click', function () {
-      var collapsed = bar.getAttribute('data-collapsed') === 'true';
-      bar.setAttribute('data-collapsed', collapsed ? 'false' : 'true');
-      lsSet('dev.toolbar.collapsed', collapsed ? 'false' : 'true');
+      var next = bar.dataset.collapsed === 'true' ? 'false' : 'true';
+      bar.dataset.collapsed = next;
+      lsSet('dev.toolbar.collapsed', next);
     });
     bar.appendChild(toggle);
 
@@ -226,8 +222,8 @@
     function refreshEnv() { envBox.value = api.envLine(); }
 
     var flags = api.registry.flags || [];
-    for (var i = 0; i < flags.length; i++) {
-      body.appendChild(renderRow(api, flags[i], refreshEnv));
+    for (var flag of flags) {
+      body.appendChild(renderRow(api, flag, refreshEnv));
     }
 
     var foot = el('div', 'mf-devbar-foot');
@@ -236,7 +232,7 @@
     var reset = el('button', 'mf-devbar-toggle', 'reset all to declared defaults');
     reset.type = 'button';
     reset.addEventListener('click', function () {
-      for (var j = 0; j < flags.length; j++) { api.reset(flags[j].name); }
+      for (var flag of flags) { api.reset(flag.name); }
       global.location.reload();
     });
     foot.appendChild(reset);
@@ -260,11 +256,10 @@
 
     if (flag.effect === 'route') {
       control = doc.createElement('select');
-      var options = flag.options || [];
-      for (var i = 0; i < options.length; i++) {
+      for (var option of flag.options || []) {
         var opt = doc.createElement('option');
-        opt.value = options[i];
-        opt.textContent = options[i] + (options[i] === api.defaultOf(flag.name) ? ' (default)' : '');
+        opt.value = option;
+        opt.textContent = option + (option === api.defaultOf(flag.name) ? ' (default)' : '');
         control.appendChild(opt);
       }
       control.value = api.get(flag.name);
