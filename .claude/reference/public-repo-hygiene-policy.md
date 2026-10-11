@@ -9,8 +9,6 @@ patterns, and an unredacted workspace `CLAUDE.md` committed to public repos.
 
 - References to other **public** repos (`ffreis-website-compiler`, `ffreis-siteops`,
   `ffreis-website-deployer`, `ffreis-platform-standards`, etc.)
-- Public production domains (`ffreis.com`, `flemming.com.br`, `petlook.app`,
-  `petlook.ai`)
 - Generic descriptions: "the fleet inventory", "a private consumer", "internal infra",
   "private data repo", "the website Lambdas repo"
 - Secret **names** (not values): `AWS_DEPLOY_ROLE_ARN`, `CF_DISTRIBUTION_ID`, etc.
@@ -19,10 +17,10 @@ patterns, and an unredacted workspace `CLAUDE.md` committed to public repos.
 ### What is NOT acceptable in public repos
 
 - **Private repo names**: any repo not listed on the public profile README
-  (e.g., `ffreis-website`, `flemming-website`, `petlook-data`, `ffreis-website-inventory`,
-  `ffreis-rust-shared`, `ffreis-tracker-sdk`, all `*-infra` repos)
+  (e.g., `acme-website`, `widgetco-website`, `acme-data`, `acme-website-inventory`,
+  `acme-rust-shared`, `acme-tracker-sdk`, all `*-infra` repos)
 - **Internal dev domains**: `*.ffreis.com` subdomains used for dev routing
-  (e.g., `flemming.ffreis.com`, `dev.ffreis.com`)
+  (e.g., `widgetco.ffreis.com`, `dev.ffreis.com`)
 - **Internal naming patterns**: AWS resource-naming conventions, S3 bucket patterns,
   API Gateway naming conventions (e.g., `-api-dev`)
 - **Workspace context files**: `workspace/CLAUDE.md`, `workspace/AGENTS.md` — these
@@ -31,6 +29,10 @@ patterns, and an unredacted workspace `CLAUDE.md` committed to public repos.
 - **AWS resource IDs**: hardcoded bucket names, CloudFront distribution IDs,
   account IDs, role ARNs (even in comments)
 - **Real credential values**: any token, key, or secret (even expired ones)
+- **Production domains**: any real production domain name, including the fleet's own
+  live ones — not just internal dev subdomains (e.g., `acme.com`, `widgetco.app`,
+  `product-a.ai`). *Updated: real production domains are no longer exempt — the old
+  carve-out that allowed them because "they're live DNS anyway" is removed.*
 
 ### Verification
 

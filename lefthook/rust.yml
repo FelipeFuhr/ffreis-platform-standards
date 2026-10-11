@@ -41,7 +41,7 @@ release:
       #
       # This tier fires on every branch whose commits imply a minor/major bump,
       # i.e. every `feat:` branch. An unscoped whole-crate sweep does not fit in
-      # a promotion gate: ffreis-urbs-admin is 1,606 mutants at ~44s each, ~19
+      # a promotion gate: ffreis-acme-admin is 1,606 mutants at ~44s each, ~19
       # hours against a ~50 minute budget, so the gate was killed on every
       # `feat:` PR and none could be promoted. That is a function of crate SIZE,
       # so it reaches every Rust repo eventually.
