@@ -91,7 +91,7 @@ make setup          # after cloning any repo; installs tooling + hooks
 For website builds locally, use `ffreis-siteops` (NOT the deployer — that's CI only):
 ```bash
 cd ffreis-siteops
-make build SITE=flemming ENV=dev
+make build SITE=widgetco ENV=dev
 ```
 
 ### Agent safety rules
