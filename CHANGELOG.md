@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.11.1](https://github.com/FelipeFuhr/ffreis-platform-standards/compare/v1.11.0...v1.11.1) (2026-10-14)
+
+
+### Bug Fixes
+
+* **lefthook:** skip symlinks in hygiene-binary-files ([#106](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/106)) ([1347971](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/13479716d41037ff80bfa4fc373cda80f8626423))
+* **lefthook:** sync check_commit_msg.sh's pattern with base.yml's ([#99](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/99)) ([89ec4ae](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/89ec4aeced933963917c1c4871299f3cc4f7bee8))
+* **mutation:** a failed baseline is not a passing score ([#101](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/101)) ([746edd5](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/746edd57734e1d6a63ecb81e2372ceb9a90b0208))
+
 ## [1.11.0](https://github.com/FelipeFuhr/ffreis-platform-standards/compare/v1.10.1...v1.11.0) (2026-09-07)
 
 
