@@ -56,6 +56,14 @@ pre-commit:
         while IFS= read -r file; do
           [ -n "$file" ] || continue
           [ -f "$file" ] || continue
+          # `[ -f ]` follows a symlink to test its TARGET, but `file` (without
+          # `-L`) reports on the symlink itself -- always `inode/symlink`,
+          # regardless of what it points at. A symlink's own git-tracked
+          # content is just a path string, never binary; skip it here rather
+          # than reject every repo using symlinks to alias a shared asset
+          # (e.g. several pages' identical per-page stylesheet pointing at one
+          # real file) under this check meant to catch binary file CONTENT.
+          [ -L "$file" ] && continue
           mime=$(file --mime-type -b "$file")
           case "$mime" in
             # `file` reports several plainly-textual formats under application/*.
