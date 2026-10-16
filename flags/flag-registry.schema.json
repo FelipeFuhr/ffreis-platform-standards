@@ -2,11 +2,15 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/FelipeFuhr/ffreis-platform-standards/main/flags/flag-registry.schema.json",
   "title": "ffreis flag registry",
-  "description": "One declarative registry of every deliberate point of variation in a project. The dev toolbar, the runtime feature-flag resolver, and the compile-time build config are all GENERATED projections of this file — never hand-edited per feature. A port (mock<->real swap) is just kind:adapter; feature flags are the whole registry. Canonical source of truth. Reference implementation: heavy-heater/flags/flags.json. Spec: .claude/workspace/AGENTS.md § 'Every point of variation is a declared flag'.",
+  "description": "One declarative registry of every deliberate point of variation in a project. The dev toolbar, the runtime feature-flag resolver, and the compile-time build config are all GENERATED projections of this file — never hand-edited per feature. A port (mock<->real swap) is just kind:adapter; feature flags are the whole registry. Canonical source of truth. Spec: .claude/workspace/AGENTS.md § 'Every point of variation is a declared flag'. category:quality extends the same mechanism from infrastructure variation to component/media QUALITY rules (see flags/quality-rules.md): maximum rigor is the default and every opt-out is a declared, reasoned `exceptions` entry rather than a silent gap. Semantic conformance beyond this schema is enforced by scripts/validate-flag-registry.py.",
   "type": "object",
   "required": ["version", "flags"],
   "additionalProperties": false,
   "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Points at this schema so editors validate the registry as you type. Permitted explicitly because `additionalProperties` is false — without this property the documented consumer snippet would be rejected by the schema it names."
+    },
     "version": { "type": "integer", "const": 1 },
     "project": { "type": "string", "description": "Repo/site name this registry governs." },
     "flags": { "type": "array", "items": { "$ref": "#/$defs/flag" } }
@@ -27,8 +31,8 @@
           "description": "adapter=swap implementation (mock<->real, testability); service=route among downstreams; value=typed config; gate=enable/disable a feature."
         },
         "category": {
-          "enum": ["data", "api", "model", "content", "lang", "feature", "infra"],
-          "description": "Toolbar grouping. data/api/model/content/lang are the 5 canonical dials; feature=pure gates; infra=deploy-time wiring."
+          "enum": ["data", "api", "model", "content", "lang", "feature", "infra", "quality"],
+          "description": "Toolbar grouping. data/api/model/content/lang are the 5 canonical dials; feature=pure gates; infra=deploy-time wiring; quality=a component/media quality rule (images, text/fonts, structure, accessibility) rather than a runtime dial — it never appears in the dev toolbar and is enforced at build time. A quality entry additionally requires `rule`, and must either name the gate that enforces it in `seam` or carry a reasoned `exceptions` entry saying why it does not enforce."
         },
         "binding": {
           "enum": ["compile", "runtime"],
@@ -66,13 +70,57 @@
           "default": false,
           "description": "True if flipping away from default can incur real cost (bill Bedrock, hit prod SES). Forces default=cheapest + a toolbar confirmation."
         },
+        "rule": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "description": "For category:quality — the quality rule this entry governs, from the controlled vocabulary in flags/quality-rules.md. A rule id not listed there is rejected, so a typo cannot masquerade as a declared rule."
+        },
+        "output_target": {
+          "description": "For category:quality — which output-target class(es) the rule governs. browser-live=a page a user interacts with in a browser (viewport, fold position and deferred loading all exist); document-export=a batch artifact with no runtime (PDF/Markdown/exported HTML file); raster-export=a batch image. A rule is meaningless outside the classes it names — lazy-loading has no meaning for a PNG, because there is no 'later' to defer to. Omit to mean every target this project produces.",
+          "oneOf": [
+            { "$ref": "#/$defs/outputTarget" },
+            { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/outputTarget" } }
+          ]
+        },
+        "exceptions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/exception" },
+          "description": "Declared, reasoned opt-outs. The point of the mechanism: an exception is a first-class visible allow-list entry, never a silent gap. An entry with no real reason is rejected by scripts/validate-flag-registry.py."
+        },
         "description": { "type": "string" }
       },
       "allOf": [
         { "if": { "properties": { "effect": { "const": "route" } } }, "then": { "required": ["options"] } },
         { "if": { "properties": { "kind": { "const": "value" } } }, "then": { "required": ["value_type"] } },
-        { "if": { "properties": { "kind": { "const": "gate" } } }, "then": { "properties": { "effect": { "const": "toggle" } } } }
+        { "if": { "properties": { "kind": { "const": "gate" } } }, "then": { "properties": { "effect": { "const": "toggle" } } } },
+        { "if": { "properties": { "category": { "const": "quality" } } }, "then": { "required": ["rule"] } }
       ]
+    },
+    "outputTarget": {
+      "enum": ["browser-live", "document-export", "raster-export"]
+    },
+    "exception": {
+      "type": "object",
+      "required": ["scope", "reason"],
+      "additionalProperties": false,
+      "properties": {
+        "scope": {
+          "type": "string",
+          "minLength": 1,
+          "description": "What the exception covers — a path, a component, a named output target, or a stated condition. Narrow enough that a reader can tell whether a given case falls under it."
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "description": "WHY the rule does not apply here. A real engineering reason, not a restatement of the scope and not a placeholder — 'TODO'/'N/A'/'later' are rejected by the validator."
+        },
+        "added": {
+          "type": "string",
+          "format": "date",
+          "description": "ISO date the exception was granted, so a reader can tell a deliberate long-standing carve-out from fresh debt."
+        }
+      }
     }
   }
 }

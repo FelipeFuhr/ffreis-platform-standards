@@ -40,8 +40,9 @@ print(f'All {len(files)} YAML configs valid.')
 endef
 export VALIDATE_YAML_PY
 
-.PHONY: help test lint validate-json validate-yaml test-hooks shellcheck fmt-check \
-        lint-instructions secrets-scan-staged lefthook-bootstrap lefthook-install hooks setup
+.PHONY: help test lint validate-json validate-yaml validate-flags test-hooks \
+        shellcheck fmt-check lint-instructions secrets-scan-staged \
+        lefthook-bootstrap lefthook-install hooks setup
 
 help: ## Show available targets
 	@awk 'BEGIN {FS = ":.*##"} /^[a-zA-Z_-]+:.*##/ {printf "\033[36m%-22s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -57,16 +58,25 @@ validate-json: ## Validate renovate.json, renovate/*.json presets, and flags/*.j
 validate-yaml: ## Validate lefthook.yml and all lefthook/*.yml and golangci/*.yml files
 	@python3 -c "$$VALIDATE_YAML_PY"
 
+validate-flags: ## Validate a flags/flags.json against the canonical schema + quality vocabulary
+	@if [ -f flags/flags.json ]; then \
+	  python3 scripts/validate-flag-registry.py flags/flags.json; \
+	else \
+	  echo "  --   no flags/flags.json here — this repo DEFINES the registry schema rather"; \
+	  echo "       than owning a registry. The validator's own behaviour lock runs in 'make test'."; \
+	fi
+
 test-hooks: ## Test the commit-msg conventional-commits pattern shipped in lefthook/base.yml
 	@bash scripts/test-commit-msg-pattern.sh
 
-fmt-check: lint validate-json validate-yaml test-hooks ## Run all local validation checks
+fmt-check: lint validate-json validate-yaml validate-flags test-hooks ## Run all local validation checks
 
 lint-instructions: ## Verify the AGENTS.md rules/reference split hasn't silently dropped a rule
 	@bash scripts/check-instructions.sh
 
-test: ## Run the mutation-diff behaviour lock (hermetic; stubs cargo)
+test: ## Run the repo's behaviour locks (hermetic; stubs cargo)
 	@bash scripts/mutation-diff-selftest.sh
+	@bash scripts/validate-flag-registry-selftest.sh
 
 shellcheck: ## Lint shell scripts
 	@if command -v shellcheck >/dev/null 2>&1; then \
