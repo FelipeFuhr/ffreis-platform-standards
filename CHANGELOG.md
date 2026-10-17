@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.12.0](https://github.com/FelipeFuhr/ffreis-platform-standards/compare/v1.11.1...v1.12.0) (2026-10-17)
+
+
+### Features
+
+* **flags:** add quality category + a validator that enforces it ([#107](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/107)) ([8ac33ce](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/8ac33cec923962115f2eb84487a773169dc2653c))
+
 ## [1.11.1](https://github.com/FelipeFuhr/ffreis-platform-standards/compare/v1.11.0...v1.11.1) (2026-10-14)
 
 
