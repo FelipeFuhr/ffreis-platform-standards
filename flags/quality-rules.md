@@ -95,6 +95,18 @@ Enforcing this rule means asserting **identity**, not presence:
 satisfy it. For a renderer, await font readiness before capture and fail when
 a declared family did not resolve.
 
+**Identity is necessary but not sufficient — the text must also survive as
+text.** PDF/UA treats character encodings, Unicode character maps and use of
+the `.notdef` glyph as separate checkpoints from embedding, and for good
+reason: a font can be embedded and visually perfect while its glyphs map to no
+Unicode, so every downstream consumer (copy-paste, search indexing, a screen
+reader, an ATS parser) sees nothing. This has shipped in this fleet — a
+renderer rasterised a *variable* font into Type 3 glyph procedures, which both
+hid the family name from `pdffonts` and stripped `ToUnicode` from some objects,
+degrading extraction with every existing gate still green. Where the format has
+the concept, assert Unicode-mappability alongside identity; static per-weight
+faces avoid the variable-instance trap entirely.
+
 A theme that deliberately declares only a system stack is a legitimate
 `exceptions` entry — a family with no webfont behind it was chosen on purpose,
 and the rule's real target is a declared font that silently did not load.
@@ -145,6 +157,72 @@ comment is documentation, not a gate. This rule is most valuable where a color
 arrives from **outside** the repo — a brand registry, a theme overlay, a
 per-site inventory — because nothing in the authoring loop will catch an
 externally-supplied accent that lands illegibly on its own background.
+
+### `language-declared`
+
+The output declares its natural language, and declares a different one for any
+span that changes language.
+
+Applies to: all three classes.
+
+Cheap, mechanical, and easy to leave out of every gate because nothing looks
+broken without it: a screen reader simply pronounces the text with the wrong
+phonetics. HTML expresses it as `lang`/`hreflang`, PDF as the document and
+span `Lang` entries (PDF/UA and PDF/A both make it a checkpoint), a deck or
+document theme as a front-matter field.
+
+A tool can decide that a language **is declared and well-formed**; it cannot
+decide that the declared language is the **correct** one for the content —
+that part needs a human or a language-detection pass, and a rule claiming
+otherwise is overclaiming.
+
+Watch the inverse failure, which has shipped here: a build flag that *defaults*
+to one language and silently overrides the document's own declaration. The
+content was labelled correctly and the pipeline relabelled it.
+
+### `document-tagged-structure`
+
+An exported document carries a real logical structure tree, not just marks on
+a page: content is tagged, non-content (rules, decoration, running heads) is
+marked as an artifact, headings/tables/lists/links use their proper structure
+types, and the structure order reflects the intended reading order.
+
+Applies to: `document-export`.
+
+This is the document-format analogue of `landmark-structure` plus
+`table-semantics` plus `heading-hierarchy` at once, and it is standardised:
+**PDF/UA (ISO 14289)** defines it, and veraPDF validates it as a few hundred
+discrete checkpoints across PDF/UA-1 and PDF/UA-2. A generator that paints
+visually-correct pages with no tagging produces a document that is unreadable
+to assistive technology while looking perfect to its author — which is exactly
+why nothing catches it without a gate.
+
+Machine-decidable: whether a structure tree exists, whether content is tagged,
+whether artifacts are marked, whether table header relationships are
+well-formed. **Not** machine-decidable: whether the reading order matches human
+intent, or whether something tagged as a heading really is one. Split the rule
+accordingly rather than claiming the whole of PDF/UA is automatable — the
+standard itself distinguishes machine-checkable conditions from ones requiring
+human review.
+
+### `conformance-claim-validated`
+
+If an artifact *claims* conformance to a standard, the build **validates** that
+claim rather than trusting the metadata that asserts it.
+
+Applies to: `document-export`, `raster-export`.
+
+A conformance claim is a string an encoder writes. Checking that the string is
+present proves the encoder wrote it, nothing more — a document can carry a
+PDF/A identifier in its XMP and fail actual PDF/A validation. This rule exists
+because that specific shortcut is common: a hand-rolled "smoke check" greps for
+the claim, the real validator is never run, and the build reports conformance
+it has not established.
+
+Mechanical, with a real tool — veraPDF for PDF/A and PDF/UA. It also publishes
+a machine-checkable WCAG 2.2 profile distinct from its complete one, which is a
+vendor-maintained answer to "which criteria can a gate decide without a human"
+and is worth preferring over a hand-drawn subset.
 
 ### `output-dimensions`
 
@@ -199,9 +277,9 @@ against compiled markup; none of them need a browser.
 ### `landmark-structure`
 
 Every page provides the semantic landmarks that let assistive technology and
-reading-order tooling navigate it — a main region, a navigation region where
-navigation exists, and a declared document language — plus a sane heading
-hierarchy with no skipped levels.
+reading-order tooling navigate it: exactly one main region, a navigation
+region where navigation exists, banner and contentinfo at top level, landmarks
+distinguishable from one another, and no content stranded outside them.
 
 Applies to: `browser-live`, `document-export`.
 
@@ -209,6 +287,11 @@ Distinguish **presence** from **non-emptiness**: a validator asserting that
 the title and first heading are non-empty *when present* does not assert they
 exist, so a page with no heading at all passes. This rule is the presence
 half, and it is the half usually missing.
+
+Scoped to landmarks only. Heading levels belong to `heading-hierarchy` and the
+document language to `language-declared` — both were folded in here
+originally, which made a single registry entry cover three independent gates
+and left no way to declare one of them enforced and another not.
 
 ### `design-token-only`
 
@@ -222,6 +305,139 @@ gateable, but *no ad-hoc literal outside the token file* is — the same trick
 as a unit-literal ban, aimed at color, shadow, duration and spacing. The
 token-definition file is the one declared exception, and belongs in
 `exceptions` rather than in a special case inside the checker.
+
+### `heading-hierarchy`
+
+Headings have discernible text, descend without skipping levels, and the
+document has exactly one top-level heading.
+
+Applies to: `browser-live`, `document-export`.
+
+Split out of `landmark-structure`. Statically decidable from the heading
+sequence alone — no rendering needed — and it is the structure most readers
+actually navigate by.
+
+### `table-semantics`
+
+A data table is built as a data table: a real `<caption>` (not a paragraph
+above it styled to look like one), header cells as `<th>` with a correct
+`scope`, `<thead>`/`<tbody>` grouping, and — where headers are multi-level and
+cannot be expressed by position — explicit `id`/`headers` association. A table
+used purely for visual layout is not a data table and must not carry data-table
+semantics.
+
+Applies to: `browser-live`, `document-export`.
+
+Fully decidable from static markup, and unusually high-value because the wrong
+form is invisible to a sighted reviewer: a fake caption and a `<td>` row of
+bold text look identical to a real caption and `<th>` row, while conveying no
+relationships at all to anything parsing the structure.
+
+### `link-quality`
+
+A link's own text names its destination well enough to make sense out of
+context, links that open a new context say so, and two links with the same
+accessible name go to the same place.
+
+Applies to: `browser-live`, `document-export`.
+
+The canonical wrong form is "click here" / "read more", which is useless to
+anyone scanning a list of links out of context. Link text and duplicate-name
+checks are static; whether a link is distinguishable from surrounding text
+*without relying on colour* needs rendered styles.
+
+Note one sub-rule has aged: pairing `target="_blank"` with `rel="noopener"` is
+still good hygiene for old browsers, but modern engines apply `noopener`
+implicitly, so gate it as a recommendation rather than a security finding.
+
+### `list-semantics`
+
+Lists are real lists: `<li>` only inside `<ul>`/`<ol>`, `<dt>`/`<dd>` only
+inside `<dl>`, and no list-shaped pile of `<div>`s with bullet glyphs.
+
+Applies to: `browser-live`, `document-export`.
+
+Pure parent/child structure, entirely static, and cheap. Assistive technology
+announces list length and position from it, which a styled `<div>` stack
+cannot provide.
+
+### `media-text-alternatives`
+
+Time-based media carries the text alternatives its kind requires: one `<track>`
+per purpose, with `captions` (dialogue **plus** sound effects and musical cues)
+distinguished from `subtitles` (dialogue transcription or translation only) and
+`descriptions`; `srclang` present where the kind requires it; no two tracks
+sharing kind, language and label; and no audio that autoplays without a control
+to stop it.
+
+Applies to: `browser-live`.
+
+Track presence and attribute correctness are static. Whether autoplaying audio
+exceeds the tolerated duration needs a rendered browser. The common wrong form
+is a single undifferentiated subtitle file doing duty as captions, which omits
+exactly the non-dialogue information a deaf viewer needs.
+
+### `iframe-identified`
+
+Every embedded frame carries a `title` describing what it contains, untrusted
+or third-party content is `sandbox`ed, and offscreen frames defer loading.
+
+Applies to: `browser-live`.
+
+Static. Without a title, a screen-reader user must enter the frame to discover
+what it is; `sandbox` is the difference between embedding content and granting
+it your origin's capabilities.
+
+### `control-semantics`
+
+Interactive controls are the native element for the job, carry discernible
+text, and are never nested inside one another.
+
+Applies to: `browser-live`.
+
+Covers the whole family of retrofits: a `<div onclick>` where a `<button>`
+belongs, an implicit `<button>` type that submits a form by accident, an icon
+button with no accessible name, a link wrapping a button. Static, and the
+fix is almost always "use the native element", which is also less code.
+
+### `icon-accessible-name`
+
+An icon that conveys meaning has an accessible name; an icon that is pure
+decoration is hidden from assistive technology and carries no ARIA or
+`tabindex`.
+
+Applies to: `browser-live`.
+
+Static. The two halves matter equally — an unnamed meaningful icon is silent,
+and a decorative icon left exposed adds noise to every screen-reader pass.
+Note this interacts with inlining: a build step that converts `<img>` icons to
+inline `<svg>` must carry the alternative text across, or it silently destroys
+it.
+
+### `unique-ids`
+
+Element ids are unique within a document and every id reference resolves.
+
+Applies to: `browser-live`, `document-export`.
+
+Foundational rather than interesting on its own: `label`/`for`,
+`aria-describedby`, `aria-labelledby`, `headers`/`id` and in-page links all
+resolve through ids, so a duplicate or dangling id silently breaks whichever
+of those depends on it. Cheap, static, and worth gating before the rules that
+build on it.
+
+### `element-nesting-valid`
+
+Markup is assembled legally: elements appear only where their content model
+permits, required parents and ancestors are present, and elements that may
+appear once do.
+
+Applies to: `browser-live`.
+
+The most literal "is this chunk built correctly" rule in the vocabulary, and
+the one that catches structural nonsense before any accessibility rule has to
+reason about it. Static, and well covered by existing HTML validators rather
+than needing bespoke checks.
 
 ### `reduced-motion`
 

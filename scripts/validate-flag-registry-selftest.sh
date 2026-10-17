@@ -94,6 +94,43 @@ else
 fi
 
 echo
+# A heading that LOOKS like a rule but is not a well-formed id must be
+# reported here, not skipped. Skipping registers no rule, and the only symptom
+# would be a later "not in the vocabulary" rejection against the registry —
+# sending the reader to the wrong file to hunt a typo that lives in this one.
+echo "-- a malformed or duplicated rule heading is reported, not skipped --"
+
+# expect_vocabulary_error <label> <needle> ; vocabulary body on stdin
+expect_vocabulary_error() {
+  local label="$1" needle="$2" vocab="$tmpdir/vocabulary.md" out rc=0
+  cat > "$vocab"
+  out=$(python3 "$validator" --schema "$schema" --vocabulary "$vocab" \
+    "$tmpdir/minimal.json" 2>&1) || rc=$?
+  if [[ "$rc" -eq 2 ]] && printf '%s' "$out" | grep -qF -- "$needle"; then
+    printf '  ok    %s\n' "$label"
+    pass=$((pass + 1))
+  else
+    printf '  FAIL  %s  (rc=%s, wanted %s)\n' "$label" "$rc" "$needle"
+    printf '        got: %s\n' "$out"
+    fail=$((fail + 1))
+  fi
+}
+
+expect_vocabulary_error "uppercase rule id" "malformed rule id" <<'MD'
+### `Font-Integrity`
+MD
+
+expect_vocabulary_error "rule id with spaces" "malformed rule id" <<'MD'
+### `font integrity`
+MD
+
+expect_vocabulary_error "duplicated rule id" "duplicate rule id" <<'MD'
+### `font-integrity`
+
+### `font-integrity`
+MD
+
+echo
 echo "-- a fully valid registry, exercising every kind and both quality shapes --"
 expect_ok "all four kinds + enforcing and non-enforcing quality" <<'JSON'
 {

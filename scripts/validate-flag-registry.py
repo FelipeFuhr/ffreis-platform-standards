@@ -32,6 +32,7 @@ import argparse
 import json
 import re
 import sys
+from collections import Counter
 from pathlib import Path
 
 # A reason that is one of these, or shorter than this, explains nothing. The
@@ -46,7 +47,8 @@ MIN_REASON_CHARS = 15
 # (false, "off") means it is not, which is what triggers the justify-it branch.
 ENFORCING_DEFAULTS = frozenset({True, "error", "warn"})
 
-RULE_HEADING_RE = re.compile(r"^###\s+`([a-z][a-z0-9-]*)`\s*$", re.MULTILINE)
+RULE_HEADING_RE = re.compile(r"^###\s+`([^`]+)`\s*$", re.MULTILINE)
+RULE_ID_RE = re.compile(r"^[a-z][a-z0-9-]*$")
 
 
 class SchemaFacts:
@@ -96,8 +98,22 @@ def load_json(path: Path) -> dict:
         return json.load(handle)
 
 
-def load_vocabulary(path: Path) -> set[str]:
-    return set(RULE_HEADING_RE.findall(path.read_text(encoding="utf-8")))
+def load_vocabulary(path: Path) -> tuple[set[str], list[str]]:
+    """Return the rule ids, plus any problems with the vocabulary file itself.
+
+    A heading that looks like a rule but is not a well-formed id is reported
+    rather than skipped. Skipping registers no rule, and the only symptom
+    would be a later "not in the vocabulary" rejection pointing at the
+    registry — sending the reader to the wrong file to find a typo that is
+    here. A duplicate id is reported for the same reason: harmless to the set,
+    but always a copy-paste error worth surfacing.
+    """
+    headings = RULE_HEADING_RE.findall(path.read_text(encoding="utf-8"))
+    problems = [f"malformed rule id `{h}` (must match {RULE_ID_RE.pattern})"
+                for h in headings if not RULE_ID_RE.fullmatch(h)]
+    problems += [f"duplicate rule id `{h}`"
+                 for h, count in sorted(Counter(headings).items()) if count > 1]
+    return {h for h in headings if RULE_ID_RE.fullmatch(h)}, problems
 
 
 def is_placeholder(reason: str) -> bool:
@@ -290,9 +306,15 @@ def main(argv: list[str]) -> int:
 
     try:
         facts = SchemaFacts(load_json(args.schema))
-        vocabulary = load_vocabulary(args.vocabulary)
+        vocabulary, vocabulary_problems = load_vocabulary(args.vocabulary)
     except (OSError, json.JSONDecodeError) as error:
         print(f"ERROR: cannot read schema/vocabulary: {error}", file=sys.stderr)
+        return 2
+
+    if vocabulary_problems:
+        print(f"ERROR: {args.vocabulary} is malformed:", file=sys.stderr)
+        for problem in vocabulary_problems:
+            print(f"       {problem}", file=sys.stderr)
         return 2
 
     gaps = facts.missing_pieces()
