@@ -29,8 +29,13 @@ jobs:
       source-root: .
       upload-sarif: false
 
-  # Validate that all renovate/*.json preset files are valid JSON and all
-  # lefthook/*.yml + golangci/*.yml configs are valid YAML.
+  # Validate that all renovate/*.json + flags/*.json files are valid JSON and
+  # all lefthook/*.yml + golangci/*.yml configs are valid YAML, then run the
+  # flag-registry validator's behaviour lock.
+  #
+  # The flags/*.json glob mirrors the Makefile's VALIDATE_JSON_PY: the two
+  # drifted before (the Makefile validated flags/, CI did not), so a malformed
+  # schema could pass CI and only fail a local `make fmt-check`.
   validate-presets:
     name: Validate preset files
     permissions:
@@ -41,7 +46,7 @@ jobs:
       commands: |
         python3 -c "
         import json, glob, sys
-        files = sorted(['renovate.json'] + glob.glob('renovate/*.json'))
+        files = sorted(['renovate.json'] + glob.glob('renovate/*.json') + glob.glob('flags/*.json'))
         failed = []
         for f in files:
             try:
@@ -54,6 +59,8 @@ jobs:
             sys.exit(1)
         print(f'All {len(files)} JSON configs are valid.')
         "
+
+        bash scripts/validate-flag-registry-selftest.sh
 
         pip install PyYAML --quiet
 
