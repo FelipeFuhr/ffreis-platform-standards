@@ -3,6 +3,8 @@ paths:
   - "scripts/install_act.sh"
   - "scripts/run-ci-local.sh"
   - "scripts/ci-local.env.example"
+  - "scripts/audit-make-inline-comments.sh"
+  - "scripts/audit-make-inline-comments-selftest.sh"
 ---
 
 # Local CI runner (`scripts/`)
@@ -25,7 +27,8 @@ Paste this into a repo's `Makefile` — pattern mirrors how the lefthook
 bootstrap is already pulled in (`.github/Makefile`, `ml/ffreis-integration-hub/Makefile`):
 
 ```makefile
-PLATFORM_STANDARDS_SHA := <commit-sha>     # main as of YYYY-MM-DD
+# v1.11.0
+PLATFORM_STANDARDS_SHA := <commit-sha>
 PLATFORM_STANDARDS_RAW := https://raw.githubusercontent.com/FelipeFuhr/ffreis-platform-standards
 
 install-act: ## Download pinned act binary into .bin/
@@ -42,9 +45,26 @@ ci-local: ## Run workflows locally via act (GH Actions quota fallback)
 ```
 
 Pin `PLATFORM_STANDARDS_SHA` to a commit (not `main`) so script behavior
-doesn't drift under you. The trailing comment documents what the SHA
-corresponds to — Renovate keeps the SHA updated; humans update the comment
-on the same PR.
+doesn't drift under you. The version comment goes on **its own line ABOVE the
+assignment**, never trailing after the SHA — this snippet used to show the
+trailing form and that is where the fleet's copy of it came from.
+
+GNU make strips a trailing `# comment` but NOT the whitespace that preceded the
+`#`, so `PLATFORM_STANDARDS_SHA := <40-hex>  # v1.2.1` assigns a **42**-character
+value. The two spaces land inside the curl URL and every target that
+interpolates it dies with `curl: (3) URL rejected: Malformed input to a URL
+function` — `install-act`, `ci-local`, and in repos that pull their hook scripts
+through the same pin, `hook-scripts` / `lefthook-bootstrap` / `lefthook-install`
+as well. `?=` does not help; the operator is irrelevant. The defect is invisible
+in a diff and to the eye: it was found by measuring, and
+`scripts/audit-make-inline-comments.sh` is what measures it
+(`make make-comments`, the `make-inline-comments` pre-commit hook in
+`lefthook/base.yml`, and `general-make-hygiene.yml` in CI).
+
+Renovate still tracks the pin in the comment-above form — `renovate/default.json`
+carries a `matchStrings` entry for it. It did **not** before 2026-10-19, so
+repairing a Makefile without that preset bump silently de-registered the pin
+from Renovate.
 
 After adding: `make install-act` once (caches the binary in `.bin/`), then
 `make ci-local` (or `make ci-local ARGS=--quick`) any time.

@@ -41,7 +41,7 @@ endef
 export VALIDATE_YAML_PY
 
 .PHONY: help test lint validate-json validate-yaml validate-flags test-hooks \
-        shellcheck fmt-check lint-instructions secrets-scan-staged \
+        shellcheck fmt-check make-comments lint-instructions secrets-scan-staged \
         lefthook-bootstrap lefthook-install hooks setup
 
 help: ## Show available targets
@@ -69,7 +69,10 @@ validate-flags: ## Validate a flags/flags.json against the canonical schema + qu
 test-hooks: ## Test the commit-msg conventional-commits pattern shipped in lefthook/base.yml
 	@bash scripts/test-commit-msg-pattern.sh
 
-fmt-check: lint validate-json validate-yaml validate-flags test-hooks ## Run all local validation checks
+make-comments: ## Audit THIS repo for make assignments whose inline # comment leaves trailing whitespace in the value
+	@bash scripts/audit-make-inline-comments.sh
+
+fmt-check: lint validate-json validate-yaml validate-flags test-hooks make-comments ## Run all local validation checks
 
 lint-instructions: ## Verify the AGENTS.md rules/reference split hasn't silently dropped a rule
 	@bash scripts/check-instructions.sh
@@ -77,6 +80,7 @@ lint-instructions: ## Verify the AGENTS.md rules/reference split hasn't silently
 test: ## Run the repo's behaviour locks (hermetic; stubs cargo)
 	@bash scripts/mutation-diff-selftest.sh
 	@bash scripts/validate-flag-registry-selftest.sh
+	@bash scripts/audit-make-inline-comments-selftest.sh
 
 shellcheck: ## Lint shell scripts
 	@if command -v shellcheck >/dev/null 2>&1; then \
