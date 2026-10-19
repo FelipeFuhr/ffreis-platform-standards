@@ -176,14 +176,22 @@ pre-commit:
       # (.git/info/lefthook-remotes/ffreis-platform-standards-<ref>/), so the
       # hook runs the pinned upstream script with no network call and no second
       # implementation. --git-common-dir, not --git-dir: a linked worktree's
-      # gitdir has no info/ of its own.
+      # gitdir has no info/ of its own. It is also resolved through `cd && pwd`
+      # because git prints it RELATIVE (".git") from a normal checkout and
+      # absolute only from a worktree — the one shape that matters most was the
+      # one that silently found nothing.
+      #
+      # This is the one base.yml command whose logic is not inlined in the YAML:
+      # inlining a ~200-line quote-aware awk detector here would be a second
+      # implementation of the auditor, which is what the fleet's no-copy rule
+      # forbids.
       run: |
         set -eu
         mk=$(git diff --cached --name-only --diff-filter=d -z \
                | tr '\0' '\n' \
                | grep -E '(^|/)(GNU)?[Mm]akefile(\.jinja|\.j2)?$|\.mk(\.jinja|\.j2)?$' || true)
         [ -z "$mk" ] && exit 0
-        common=$(git rev-parse --git-common-dir)
+        common=$(cd "$(git rev-parse --git-common-dir)" && pwd)
         audit=$(find "$common/info/lefthook-remotes" \
                   -maxdepth 3 -path '*ffreis-platform-standards*' \
                   -name 'audit-make-inline-comments.sh' 2>/dev/null | head -1)
