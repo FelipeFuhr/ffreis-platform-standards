@@ -40,7 +40,8 @@
       "customType": "regex",
       "fileMatch": ["(^|/)Makefile(\\.jinja)?$", "(^|/)lefthook\\.yml$"],
       "matchStrings": [
-        "PLATFORM_STANDARDS_SHA\\s*[?:]?=\\s*(?<currentDigest>[a-f0-9]{40})\\s*#\\s*(?<currentValue>v\\d+\\.\\d+\\.\\d+)",
+        "#[ \\t]*(?<currentValue>v\\d+\\.\\d+\\.\\d+)[ \\t]*\\n[ \\t]*PLATFORM_STANDARDS_SHA\\s*[?:]?=[ \\t]*(?<currentDigest>[a-f0-9]{40})",
+        "PLATFORM_STANDARDS_SHA\\s*[?:]?=[ \\t]*(?<currentDigest>[a-f0-9]{40})[ \\t]*#[ \\t]*(?<currentValue>v\\d+\\.\\d+\\.\\d+)",
         "git_url:\\s*https://github\\.com/FelipeFuhr/ffreis-platform-standards\\s*\\n\\s*ref:\\s*(?<currentDigest>[a-f0-9]{40})\\s*#\\s*(?<currentValue>v\\d+\\.\\d+\\.\\d+)"
       ],
       "depNameTemplate": "FelipeFuhr/ffreis-platform-standards",

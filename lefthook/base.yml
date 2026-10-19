@@ -160,6 +160,50 @@ pre-commit:
                | grep -E '(^|/)Dockerfile([.-].*)?$' || true)
         [ -z "$df" ] && exit 0
         echo "$df" | xargs -r hadolint
+    make-inline-comments:
+      # GNU make strips a trailing `# comment` from an assignment but NOT the
+      # whitespace that preceded the `#`, so
+      #   PLATFORM_STANDARDS_SHA := 3c787edb...8db7  # v1.2.1
+      # assigns a 42-character value (40-hex SHA + two spaces). Interpolated
+      # into a URL it dies with `curl: (3) URL rejected: Malformed input to a
+      # URL function` — which is why `make hook-scripts` / `lefthook-install` /
+      # `install-act` / `ci-local` had never worked in 146 of the 147 repos
+      # carrying it. `?=` does not help; the comment must move to its own line.
+      # Measured, not eyeballed — the defect is invisible in a diff.
+      #
+      # The auditor is NOT copied here: lefthook has already cloned this whole
+      # repo at the ref the consumer pinned in its own lefthook.yml
+      # (.git/info/lefthook-remotes/ffreis-platform-standards-<ref>/), so the
+      # hook runs the pinned upstream script with no network call and no second
+      # implementation. --git-common-dir, not --git-dir: a linked worktree's
+      # gitdir has no info/ of its own. It is also resolved through `cd && pwd`
+      # because git prints it RELATIVE (".git") from a normal checkout and
+      # absolute only from a worktree — the one shape that matters most was the
+      # one that silently found nothing.
+      #
+      # This is the one base.yml command whose logic is not inlined in the YAML:
+      # inlining a ~200-line quote-aware awk detector here would be a second
+      # implementation of the auditor, which is what the fleet's no-copy rule
+      # forbids.
+      run: |
+        set -eu
+        mk=$(git diff --cached --name-only --diff-filter=d -z \
+               | tr '\0' '\n' \
+               | grep -E '(^|/)(GNU)?[Mm]akefile(\.jinja|\.j2)?$|\.mk(\.jinja|\.j2)?$' || true)
+        [ -z "$mk" ] && exit 0
+        common=$(cd "$(git rev-parse --git-common-dir)" && pwd)
+        audit=$(find "$common/info/lefthook-remotes" \
+                  -maxdepth 3 -path '*ffreis-platform-standards*' \
+                  -name 'audit-make-inline-comments.sh' 2>/dev/null | head -1)
+        if [ -z "$audit" ]; then
+          echo "make-inline-comments: auditor not in the pinned lefthook remote" >&2
+          echo "  bump this repo's lefthook.yml ref to a ffreis-platform-standards" >&2
+          echo "  release that ships scripts/audit-make-inline-comments.sh, or run" >&2
+          echo "  'make make-comments' if this repo defines it. CI enforces it either way" >&2
+          echo "  (general-make-hygiene.yml)." >&2
+          exit 0
+        fi
+        echo "$mk" | tr '\n' '\0' | xargs -0 -r bash "$audit"
 
 commit-msg:
   commands:

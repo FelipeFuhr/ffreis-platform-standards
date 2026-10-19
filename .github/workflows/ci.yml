@@ -112,6 +112,28 @@ jobs:
       commands: |
         bash scripts/mutation-diff-selftest.sh
 
+  # The make-comment hygiene gate, run on this repo by the auditor this repo now
+  # ships (scripts/audit-make-inline-comments.sh), plus that auditor's own
+  # behaviour lock. A gate whose test cannot fail is not a gate: the selftest
+  # asserts BOTH directions — the defective shape exits 1, and every legitimate
+  # shape that merely looks like it (a '#' inside quotes, a comment flush against
+  # the value, recipe lines, line continuations, an empty value, a $(strip ...)
+  # use site) exits 0.
+  #
+  # This job will move to general-make-hygiene.yml once that reusable workflow is
+  # released: it cannot be referenced here yet without either an unpinned @main
+  # (forbidden outside ffreis-workflows-general's own self-references) or a SHA
+  # that does not exist. See ffreis-workflows-general#general-make-hygiene.
+  make-comments:
+    name: make inline-comment hygiene
+    permissions:
+      contents: read
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-run-commands.yml@287f836a726a35af37bd24561fc687f66eaeb92f # v1.7.0
+    with:
+      commands: |
+        bash scripts/audit-make-inline-comments-selftest.sh
+        bash scripts/audit-make-inline-comments.sh
+
   shellcheck:
     name: Shell scripts
     permissions:
