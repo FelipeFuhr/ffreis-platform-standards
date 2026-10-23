@@ -5,7 +5,7 @@
 # WHY THIS EXISTS: the lefthook `release` tier fires on any branch whose
 # conventional commits imply a minor/major bump — i.e. every `feat:` branch.
 # It used to run `make mutation`, an UNSCOPED whole-crate sweep. On
-# ffreis-urbs-admin that is 1,606 mutants at ~44s each — ~19 hours against a
+# ffreis-acme-admin that is 1,606 mutants at ~44s each — ~19 hours against a
 # ~50 minute promotion budget, so the gate was killed every time and no `feat:`
 # PR could be promoted. That is a property of crate SIZE, not of any one
 # branch: every Rust repo hits it once it grows.

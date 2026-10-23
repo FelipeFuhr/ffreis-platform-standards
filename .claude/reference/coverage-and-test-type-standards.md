@@ -46,7 +46,7 @@ than skipping, so implement them in the same PR that adopts or bumps the config 
 
 **Why the PR gate is diff-scoped.** The `release` tier fires on every branch whose
 conventional commits imply a minor/major bump — that is every `feat:` branch. An unscoped
-whole-crate sweep does not fit in a promotion gate: `ffreis-urbs-admin` is ~1,600 mutants
+whole-crate sweep does not fit in a promotion gate: `ffreis-acme-admin` is ~1,600 mutants
 at ~44s each, ~19 hours against a ~50 minute budget. It was killed every time, so no
 `feat:` PR on that repo could be promoted at all. Nothing about that is specific to one
 branch — it is a function of crate size, and every Rust repo reaches it as it grows.

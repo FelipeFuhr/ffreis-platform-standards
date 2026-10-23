@@ -66,7 +66,7 @@ fi
 # `total -eq 0` branch below then reports it as a pass. Only outcomes.json says
 # which happened.
 #
-# Measured, not hypothetical: ffreis-flowgraph-engine's gate reported success
+# Measured, not hypothetical: ffreis-acme-engine's gate reported success
 # while testing ZERO mutants from B3 until 2026-09-28, because four of its tests
 # read the repository's own directory and cargo-mutants copies the tree WITHOUT
 # .git. `cargo mutants` exits 4 in this case, but every caller reaches this
