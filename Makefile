@@ -79,6 +79,7 @@ lint-instructions: ## Verify the AGENTS.md rules/reference split hasn't silently
 
 test: ## Run the repo's behaviour locks (hermetic; stubs cargo)
 	@bash scripts/mutation-diff-selftest.sh
+	@bash scripts/binary-files-hook-selftest.sh
 	@bash scripts/validate-flag-registry-selftest.sh
 	@bash scripts/audit-make-inline-comments-selftest.sh
 

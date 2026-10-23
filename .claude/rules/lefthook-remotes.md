@@ -30,6 +30,38 @@ Available shared configs:
 - `lefthook/ansible.yml` — yamllint (Ansible dirs: `ansible/`, `playbooks/`, `roles/`); `complex`: lint (ansible-lint); `release`: dry-run + sec (ansible-lint --profile production)
 - `lefthook/actionlint.yml` — actionlint on GitHub Actions workflows (optional, add for repos with significant workflow files)
 
+### Committing a binary a repo genuinely needs
+
+`hygiene-binary-files` rejects any staged file whose MIME type is not textual,
+because what it catches is an **accident** — a stray build artifact, a pasted
+screenshot, a vendored `.so`. Some repos legitimately carry binary assets: the
+fonts a deck theme embeds into a `.pptx`, a reference image a visual test diffs
+against.
+
+Declare them in **`.gitattributes`**, using git's own `binary` macro:
+
+```gitattributes
+theme/*/pptx/fonts/*.ttf binary
+```
+
+The hook honours that and lets the file through. Everything undeclared is still
+rejected, so the check keeps doing its job.
+
+`.gitattributes` rather than a bespoke allowlist file because it is git's own
+mechanism for "this path is binary", so the same line also stops git trying to
+diff and merge the thing — which a repo carrying binaries wants anyway. One
+declaration, two effects, no new convention invented. And a declaration is a
+reviewed line in a tracked file, so widening the exception leaves an audit
+trail where an environment variable or a `--no-verify` would not.
+
+`-text` or `-diff` **alone is not a declaration** — only the `binary` macro
+counts, so a repo normalising line endings cannot silently disable the check.
+`scripts/binary-files-hook-selftest.sh` locks all of this, running the hook
+body extracted from `base.yml` rather than a copy of it.
+
+Size is a separate gate: `hygiene-large-files` caps any staged file at 500 KB
+regardless of declaration.
+
 ### Simple vs complex/release tiers
 
 There are three categories of checks, defined once here and run identically by the
