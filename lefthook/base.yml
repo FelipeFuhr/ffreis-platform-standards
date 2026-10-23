@@ -64,6 +64,25 @@ pre-commit:
           # (e.g. several pages' identical per-page stylesheet pointing at one
           # real file) under this check meant to catch binary file CONTENT.
           [ -L "$file" ] && continue
+          # A repo that legitimately carries binary assets -- the fonts a deck
+          # theme embeds, a reference image a visual test diffs against --
+          # declares them in .gitattributes, and this honours that
+          # declaration.
+          #
+          # .gitattributes rather than a new allowlist file because it is
+          # git's OWN mechanism for "this path is binary", so declaring it
+          # also stops git trying to diff and merge the thing, which a repo
+          # carrying binaries wants anyway. One declaration, two effects, no
+          # convention invented.
+          #
+          # This keeps the check strict for everything UNdeclared, which is
+          # the accident it exists to catch -- a stray build artifact, a
+          # pasted screenshot. A declaration is a reviewed line in a tracked
+          # file, so widening it leaves an audit trail; an environment
+          # variable or a --no-verify would not.
+          if git check-attr binary -- "$file" | grep -q ': binary: set$'; then
+            continue
+          fi
           mime=$(file --mime-type -b "$file")
           case "$mime" in
             # `file` reports several plainly-textual formats under application/*.
