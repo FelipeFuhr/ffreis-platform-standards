@@ -87,6 +87,21 @@ lefthook run complex --all-files    # heavy suite (test/coverage/vuln) — at dr
 lefthook run release --all-files    # version-significant (build/mutation/fuzz) — minor/major bumps
 ```
 
+### Required-target audit
+
+Before bumping a fleet repository's standards pin, run the non-mutating audit
+against its checkout. It derives the contract from this standards checkout's
+selected `complex`/`release` language configs and checks Makefile declarations
+only—it never starts a build, test, or mutation run.
+
+```bash
+bash scripts/audit-required-make-targets.sh /path/to/repo-a /path/to/repo-b
+```
+
+This makes the intentional no-graceful-skip contract visible early, including
+Rust `build-release`/`mutation`, Python `mutation`, and integration coverage
+gates.
+
 ### Renovate (per-repo `renovate.json`)
 
 ```json
