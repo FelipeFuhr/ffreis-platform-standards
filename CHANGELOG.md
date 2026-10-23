@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.12.0](https://github.com/FelipeFuhr/ffreis-platform-standards/compare/v1.11.1...v1.12.0) (2026-10-23)
+
+
+### Features
+
+* **flags:** add quality category + a validator that enforces it ([#107](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/107)) ([8ac33ce](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/8ac33cec923962115f2eb84487a773169dc2653c))
+* **lefthook:** .gitattributes can declare a file binary ([4fe5c41](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/4fe5c4105c607cb475d9443cbf77295517273144))
+* **quality:** ship the make inline-comment auditor as a fleet standard ([#109](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/109)) ([c5095f5](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/c5095f577d310de0fb4c11517036785f8c42e249))
+
 ## [1.11.1](https://github.com/FelipeFuhr/ffreis-platform-standards/compare/v1.11.0...v1.11.1) (2026-10-14)
 
 
