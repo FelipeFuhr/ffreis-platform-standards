@@ -203,6 +203,27 @@ if ! printf '%s\n' "$@" | grep -qE '^(-j|--jobs)$'; then
   jobs_args=(--jobs "$want")
 fi
 
+# `mutants.out/` lands in the SOURCE tree, not the scratch copy, deliberately:
+# it is the evidence a human inspects after a failure. That makes "does it
+# exist" the wrong question to ask afterwards — a run whose diff had nothing
+# mutable leaves an EARLIER run's directory untouched, and scoring it reports
+# that run's score against this diff. Observed for real: a PR touching only
+# doc comments and a test printed `Caught: 170  Missed: 46  Score: 78%`,
+# every figure belonging to a different branch measured the day before, with
+# `No mutants to filter` four lines above it. CI never sees this because every
+# job starts from a fresh checkout; it is local runs — where this is the
+# `release`-tier and `/ready` gate — that silently pass.
+#
+# So mark the start of the run and ask whether THIS run wrote the outcomes,
+# rather than whether some run once did. A marker rather than deleting or
+# rotating the old directory: the previous evidence stays inspectable, and the
+# source tree is not modified by a gate that is supposed to only read it.
+# cargo-mutants always builds and tests an unmutated baseline before writing
+# outcomes.json, so a genuine run's file is always strictly newer than a
+# marker written immediately before it.
+run_marker="$scratch/run-started"
+: > "$run_marker"
+
 set +e
 env -u CARGO_TARGET_DIR CACHE_TIER="$scratch/cargo-cache" TMPDIR="$scratch" \
   cargo mutants --in-diff "$diff_file" "${jobs_args[@]}" "$@" 2>&1
@@ -210,14 +231,32 @@ rc=$?
 set -e
 echo "mutation-diff: cargo-mutants exited ${rc}"
 
-if [[ ! -d "$src_dir/mutants.out" ]]; then
+# The same four files mutation_score.sh scores from, plus outcomes.json for
+# its baseline check — asking about the directory alone would be the original
+# bug in a new place, and asking about one file would depend on which of them
+# cargo-mutants happens to write first.
+fresh_outcomes=0
+for outcome_file in caught.txt missed.txt unviable.txt timeout.txt outcomes.json; do
+  if [[ -e "$src_dir/mutants.out/$outcome_file" ]] &&
+    [[ "$src_dir/mutants.out/$outcome_file" -nt "$run_marker" ]]; then
+    fresh_outcomes=1
+    break
+  fi
+done
+
+if [[ "$fresh_outcomes" -eq 0 ]]; then
+  if [[ -d "$src_dir/mutants.out" ]]; then
+    echo "mutation-diff: ignoring a pre-existing mutants.out/ that this run did not" >&2
+    echo "               write — it belongs to an earlier run and says nothing about" >&2
+    echo "               this diff." >&2
+  fi
   if [[ "$rc" -eq 0 ]]; then
     echo "mutation-diff: cargo-mutants found nothing mutable in this diff (e.g. only"
     echo "               test files changed). Nothing to score. PASS."
     exit 0
   fi
-  echo "ERROR: cargo-mutants exited ${rc} and wrote no mutants.out/ — it died before" >&2
-  echo "       producing any evidence. That is a harness failure, not a pass." >&2
+  echo "ERROR: cargo-mutants exited ${rc} and wrote no outcomes of its own — it died" >&2
+  echo "       before producing any evidence. That is a harness failure, not a pass." >&2
   exit 1
 fi
 

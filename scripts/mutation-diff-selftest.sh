@@ -135,6 +135,32 @@ else
   bad "clean exit with nothing mutable is a pass, distinct from a harness failure" "rc=$rc" "$out"
 fi
 
+# --- 4b. stale mutants.out + nothing mutable -> PASS, not the old score ------
+# The regression this guards: `mutants.out/` is written into the SOURCE tree so
+# a human can inspect it, so a later run whose diff has nothing mutable leaves
+# the previous run's directory sitting there. Keying on "does mutants.out
+# exist" scored that directory and reported a PREVIOUS diff's figures as this
+# one's. Seen for real on a PR touching only doc comments and a test: it
+# printed `Caught: 170  Missed: 46  Score: 78%`, all of it belonging to another
+# branch measured the day before. CI is immune (fresh checkout every job); the
+# local `release`-tier gate is not.
+d="$root/stale"; make_repo "$d" rust
+mkdir -p "$d/mutants.out"
+: > "$d/mutants.out/caught.txt"
+for n in 1 2 3 4 5 6 7 8 9; do echo "caught $n" >> "$d/mutants.out/caught.txt"; done
+: > "$d/mutants.out/missed.txt"
+echo "missed 1" >> "$d/mutants.out/missed.txt"
+# 90% — comfortably over any threshold, so a vacuous pass here is invisible
+# unless the test looks at WHY it passed.
+touch -d "@1000000000" "$d/mutants.out/caught.txt" "$d/mutants.out/missed.txt"
+out="$(run_subject "$d" . 70 MUTANTS_TMPDIR="$root/tmp4b" STUB_RC=0)"; rc=$?
+if [[ $rc -eq 0 ]] && grep -q "nothing mutable" <<<"$out" &&
+  grep -q "pre-existing mutants.out" <<<"$out" && ! grep -qE "Score:" <<<"$out"; then
+  ok "a stale mutants.out is not scored as this diff's result"
+else
+  bad "a stale mutants.out is not scored as this diff's result" "rc=$rc" "$out"
+fi
+
 # --- 5. scoring: at threshold passes, below it fails -------------------------
 d="$root/score"; make_repo "$d" rust
 out="$(run_subject "$d" . 70 MUTANTS_TMPDIR="$root/tmp5a" STUB_RC=2 STUB_CAUGHT=7 STUB_MISSED=3)"; rc=$?
