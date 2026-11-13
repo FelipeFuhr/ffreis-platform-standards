@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.13.0](https://github.com/FelipeFuhr/ffreis-platform-standards/compare/v1.12.0...v1.13.0) (2026-11-13)
+
+
+### Features
+
+* **metrics:** add the metric registry standard and its validator ([#113](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/113)) ([45f723a](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/45f723aab970e319e1aa1c37482b3a777f7531d7))
+
+
+### Bug Fixes
+
+* **mutation:** never score a mutants.out this run did not write ([#111](https://github.com/FelipeFuhr/ffreis-platform-standards/issues/111)) ([e9119a9](https://github.com/FelipeFuhr/ffreis-platform-standards/commit/e9119a9834dd92cb19c49f4f01b6578ae2a31b79))
+
 ## [1.12.0](https://github.com/FelipeFuhr/ffreis-platform-standards/compare/v1.11.1...v1.12.0) (2026-10-23)
 
 
