@@ -1,0 +1,142 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/FelipeFuhr/ffreis-platform-standards/main/metrics/metric-registry.schema.json",
+  "title": "ffreis metric registry",
+  "description": "One declarative registry of every number a project publishes. A report's sample gates, its withheld-value states, and the synthetic scenario corpus that proves it works are all projections of this file — never hand-maintained per section. Declaring the metric IS declaring how it can be wrong. Spec: .claude/workspace/reference/every-published-number-is-a-declared-metric.md. The axes exist because each one names an observed way a published number misled a reader: a number with no feeding signal, a count read as a share, a percentile taken over n=1, a section no scenario exercises, and — the one that motivated the standard — a consent-gated sample read as if it were the whole traffic. Semantic conformance beyond this schema is enforced by scripts/validate-metric-registry.py.",
+  "type": "object",
+  "required": ["version", "metrics"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Points at this schema so editors validate the registry as you type. Permitted explicitly because `additionalProperties` is false — without this property the documented consumer snippet would be rejected by the schema it names."
+    },
+    "version": { "type": "integer", "const": 1 },
+    "project": { "type": "string", "description": "Repo/site name this registry governs." },
+    "metrics": { "type": "array", "items": { "$ref": "#/$defs/metric" } }
+  },
+  "$defs": {
+    "metric": {
+      "type": "object",
+      "required": ["name", "title", "kind", "surface", "population", "source"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "description": "Stable snake_case identifier. Referenced by other entries' `denominator` and `baseline`, and by a scenario's coverage report."
+        },
+        "title": {
+          "type": "string",
+          "description": "What a reader of the published surface sees this number called. Keeping it here is what lets an auditor match a rendered label back to its declaration."
+        },
+        "kind": {
+          "enum": ["count", "rate", "ratio", "distribution"],
+          "description": "count=an absolute tally; rate=a part over a whole of the same population (0..1 or a percentage); ratio=a comparison across two different populations; distribution=min/median/percentiles over a sample. rate and ratio need a denominator; distribution needs a minimum sample, because a percentile over one observation is that observation wearing a statistic's name."
+        },
+        "surface": {
+          "type": "string",
+          "description": "The published artifact this number appears on — a report name, a dashboard id, an email. One metric may be declared once per surface it appears on, because the same quantity can be honest on one surface and misleading on another."
+        },
+        "population": {
+          "$ref": "#/$defs/population"
+        },
+        "source": { "$ref": "#/$defs/source" },
+        "denominator": {
+          "type": "string",
+          "description": "For kind:rate and kind:ratio — the `name` of the declared metric this one is taken over. Naming it rather than describing it is the point: a reader can follow the reference, and the validator can check it resolves."
+        },
+        "baseline": {
+          "type": "string",
+          "description": "For a population that is a SUBSET of the people the surface appears to describe — the `name` of a declared metric whose population is `all-traffic`. Required for `consenting-visitor`: telemetry that only fires after consent cannot measure the visitors who refused it, so it can never be its own denominator, and a reader shown only the consenting sample will read it as the traffic. The baseline is what lets the surface say 'N of about M'."
+        },
+        "min_sample": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "The sample size below which this number must be WITHHELD rather than published. Withheld, not omitted: the surface still shows the metric and says the sample was too small, because a silently absent row reads as a zero."
+        },
+        "coverage": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" },
+          "description": "Ids of the scenarios that exercise the signal feeding this metric, so a change that stops it being produced fails something. A metric with neither coverage nor a reasoned `exceptions` entry is vacuous: nothing proves it still works."
+        },
+        "seam": {
+          "type": "string",
+          "description": "The ONE code location where this number is computed. Invariant: one metric -> one seam. Two places computing the same published number is how two surfaces come to disagree about the same week."
+        },
+        "exceptions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/exception" },
+          "description": "Declared, reasoned opt-outs — chiefly 'this metric has no scenario coverage, and here is why'. An exception is a first-class visible allow-list entry, never a silent gap. An entry with no real reason is rejected by scripts/validate-metric-registry.py."
+        },
+        "description": { "type": "string" }
+      },
+      "allOf": [
+        {
+          "if": { "required": ["kind"], "properties": { "kind": { "enum": ["rate", "ratio"] } } },
+          "then": { "required": ["denominator", "min_sample"] }
+        },
+        {
+          "if": { "required": ["kind"], "properties": { "kind": { "const": "distribution" } } },
+          "then": { "required": ["min_sample"] }
+        },
+        {
+          "if": {
+            "required": ["population"],
+            "properties": { "population": { "const": "consenting-visitor" } }
+          },
+          "then": { "required": ["baseline"] }
+        }
+      ]
+    },
+    "population": {
+      "enum": ["all-traffic", "consenting-visitor", "synthetic", "internal", "mixed"],
+      "description": "WHOSE behaviour this number describes. all-traffic=every visit, measured without needing the visitor's cooperation (server logs, edge metrics); consenting-visitor=only visitors who accepted tracking, always a subset of unknown size and so always needs a `baseline`; synthetic=generated by a scenario runner, never a person; internal=owner/developer traffic, deliberately excluded from behavioural reporting; mixed=deliberately spans more than one, which is legitimate for pipeline-health numbers ('is anything arriving at all') and misleading for behavioural ones, so it must say what it mixes in `description`."
+    },
+    "source": {
+      "type": "object",
+      "required": ["signal"],
+      "additionalProperties": false,
+      "properties": {
+        "signal": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The event, field or query that feeds this metric — a triad like `form/submit`, a log field, a named query. Specific enough that a reader can tell whether a given record contributes."
+        },
+        "excludes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Values of the signal deliberately NOT counted (a failed submit is not a conversion). Listing them here is what makes the exclusion reviewable instead of buried in a predicate, and what lets a guard scenario assert it."
+        },
+        "store": {
+          "type": "string",
+          "description": "Which store the signal is read from, where a project has more than one. Two stores behind one metric is a known way for the same period to report different numbers."
+        }
+      }
+    },
+    "exception": {
+      "type": "object",
+      "required": ["scope", "reason"],
+      "additionalProperties": false,
+      "properties": {
+        "scope": {
+          "type": "string",
+          "minLength": 1,
+          "description": "What the exception covers — a named axis, a surface, or a stated condition. Narrow enough that a reader can tell whether a given case falls under it."
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "description": "WHY the requirement does not apply here. A real engineering reason, not a restatement of the scope and not a placeholder — 'TODO'/'N/A'/'later' are rejected by the validator."
+        },
+        "added": {
+          "type": "string",
+          "format": "date",
+          "description": "ISO date the exception was granted, so a reader can tell a deliberate long-standing carve-out from fresh debt."
+        }
+      }
+    }
+  }
+}

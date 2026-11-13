@@ -8,7 +8,7 @@ SHELL         := /usr/bin/env bash
 # @-prefixed, multi-line `setup` recipe).
 define VALIDATE_JSON_PY
 import json, glob, sys
-files = sorted(['renovate.json'] + glob.glob('renovate/*.json') + glob.glob('flags/*.json'))
+files = sorted(['renovate.json'] + glob.glob('renovate/*.json') + glob.glob('flags/*.json') + glob.glob('metrics/*.json'))
 failed = []
 for f in files:
     try:
@@ -40,7 +40,7 @@ print(f'All {len(files)} YAML configs valid.')
 endef
 export VALIDATE_YAML_PY
 
-.PHONY: help test lint validate-json validate-yaml validate-flags test-hooks \
+.PHONY: help test lint validate-json validate-yaml validate-flags validate-metrics test-hooks \
         shellcheck fmt-check make-comments lint-instructions secrets-scan-staged \
         lefthook-bootstrap lefthook-install hooks setup
 
@@ -66,13 +66,21 @@ validate-flags: ## Validate a flags/flags.json against the canonical schema + qu
 	  echo "       than owning a registry. The validator's own behaviour lock runs in 'make test'."; \
 	fi
 
+validate-metrics: ## Validate a metrics/metrics.json against the canonical metric schema
+	@if [ -f metrics/metrics.json ]; then \
+	  python3 scripts/validate-metric-registry.py metrics/metrics.json; \
+	else \
+	  echo "  --   no metrics/metrics.json here — this repo DEFINES the registry schema rather"; \
+	  echo "       than owning a registry. The validator's own behaviour lock runs in 'make test'."; \
+	fi
+
 test-hooks: ## Test the commit-msg conventional-commits pattern shipped in lefthook/base.yml
 	@bash scripts/test-commit-msg-pattern.sh
 
 make-comments: ## Audit THIS repo for make assignments whose inline # comment leaves trailing whitespace in the value
 	@bash scripts/audit-make-inline-comments.sh
 
-fmt-check: lint validate-json validate-yaml validate-flags test-hooks make-comments ## Run all local validation checks
+fmt-check: lint validate-json validate-yaml validate-flags validate-metrics test-hooks make-comments ## Run all local validation checks
 
 lint-instructions: ## Verify the AGENTS.md rules/reference split hasn't silently dropped a rule
 	@bash scripts/check-instructions.sh
@@ -81,6 +89,7 @@ test: ## Run the repo's behaviour locks (hermetic; stubs cargo)
 	@bash scripts/mutation-diff-selftest.sh
 	@bash scripts/binary-files-hook-selftest.sh
 	@bash scripts/validate-flag-registry-selftest.sh
+	@bash scripts/validate-metric-registry-selftest.sh
 	@bash scripts/audit-make-inline-comments-selftest.sh
 
 shellcheck: ## Lint shell scripts
