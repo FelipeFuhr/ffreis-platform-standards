@@ -46,7 +46,7 @@ jobs:
       commands: |
         python3 -c "
         import json, glob, sys
-        files = sorted(['renovate.json'] + glob.glob('renovate/*.json') + glob.glob('flags/*.json'))
+        files = sorted(['renovate.json'] + glob.glob('renovate/*.json') + glob.glob('flags/*.json') + glob.glob('metrics/*.json'))
         failed = []
         for f in files:
             try:
@@ -61,6 +61,8 @@ jobs:
         "
 
         bash scripts/validate-flag-registry-selftest.sh
+
+        bash scripts/validate-metric-registry-selftest.sh
 
         pip install PyYAML --quiet
 
