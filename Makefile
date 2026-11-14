@@ -40,7 +40,8 @@ print(f'All {len(files)} YAML configs valid.')
 endef
 export VALIDATE_YAML_PY
 
-.PHONY: help test lint validate-json validate-yaml validate-flags validate-metrics test-hooks \
+.PHONY: help test lint validate-json validate-yaml validate-flags validate-metrics \
+        metric-coverage test-hooks \
         shellcheck fmt-check make-comments lint-instructions secrets-scan-staged \
         lefthook-bootstrap lefthook-install hooks setup
 
@@ -64,6 +65,15 @@ validate-flags: ## Validate a flags/flags.json against the canonical schema + qu
 	else \
 	  echo "  --   no flags/flags.json here — this repo DEFINES the registry schema rather"; \
 	  echo "       than owning a registry. The validator's own behaviour lock runs in 'make test'."; \
+	fi
+
+metric-coverage: ## Report what a metric registry proves vs only claims (REGISTRY=... SCENARIOS=...)
+	@if [ -z "$(REGISTRY)" ]; then \
+	  echo "  usage: make metric-coverage REGISTRY=path/to/metrics.json [SCENARIOS=path/to/scenarios]"; \
+	  echo "         this repo DEFINES the standard and owns no registry; point it at a consumer."; \
+	else \
+	  python3 scripts/metric-coverage-report.py "$(REGISTRY)" \
+	    $(if $(SCENARIOS),--scenarios "$(SCENARIOS)",); \
 	fi
 
 validate-metrics: ## Validate a metrics/metrics.json against the canonical metric schema
@@ -90,6 +100,7 @@ test: ## Run the repo's behaviour locks (hermetic; stubs cargo)
 	@bash scripts/binary-files-hook-selftest.sh
 	@bash scripts/validate-flag-registry-selftest.sh
 	@bash scripts/validate-metric-registry-selftest.sh
+	@bash scripts/metric-coverage-report-selftest.sh
 	@bash scripts/audit-make-inline-comments-selftest.sh
 
 shellcheck: ## Lint shell scripts
