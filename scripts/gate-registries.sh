@@ -14,8 +14,12 @@
 #
 # So a consumer wires ONE line instead:
 #
+#   STANDARDS_CACHE ?= $(HOME)/.cache/ffreis-standards/$(STANDARDS_SHA)
 #   validate-registries:
-#       @bash .bin/standards/gate-registries.sh "$(STANDARDS_SHA)"
+#       @bash $(STANDARDS_CACHE)/gate-registries.sh "$(STANDARDS_SHA)"
+#
+# Nothing lands in the repo: see the CACHE note below for why that is a
+# correctness property and not tidiness.
 #
 # and the next registry kind extends this script rather than every Makefile in
 # the fleet.
@@ -50,7 +54,20 @@ if [[ ! "$SHA" =~ ^[0-9a-f]{40}$ ]]; then
 fi
 
 cd "$REPO" || exit 2
-CACHE=".bin/standards-$SHA"
+
+# The cache lives OUTSIDE the repo, and that is not a preference.
+#
+# It was `.bin/standards-$SHA` inside the consumer. Rolling that out to the
+# third repo, its markdownlint walked the cached `quality-rules.md` and failed
+# the build on the STANDARDS repo's table style — `.bin/` is gitignored, and
+# markdownlint does not consult gitignore. A fetched tool is not the repo's
+# content, and every linter, formatter, coverage walker and dead-code scanner
+# in the fleet has to be told that separately if it sits in the tree. So it
+# does not sit in the tree.
+#
+# Keyed by sha, so two pins coexist and a bump is a fresh directory rather than
+# a mutated one.
+CACHE="${FFREIS_STANDARDS_CACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/ffreis-standards/$SHA}"
 mkdir -p "$CACHE" || exit 2
 
 # fetch <path-in-standards-repo> — cached; a present file is never re-fetched,

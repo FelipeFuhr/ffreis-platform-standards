@@ -130,11 +130,21 @@ pinned commit of this repo. A consumer wires it once:
 # ffreis-platform-standards, pinned. A tag or branch is NOT a pin: the gate's
 # verdict would move under the repo without its diff changing, and the script
 # rejects anything that is not a 40-char sha for exactly that reason.
-STANDARDS_SHA ?= <40-char sha>
+STANDARDS_SHA   ?= <40-char sha>
+STANDARDS_CACHE ?= $(HOME)/.cache/ffreis-standards/$(STANDARDS_SHA)
 
 validate-registries:
-	@bash .bin/standards/gate-registries.sh "$(STANDARDS_SHA)"
+	@bash $(STANDARDS_CACHE)/gate-registries.sh "$(STANDARDS_SHA)"
 ```
+
+### The cache lives outside the repo, and that is a correctness property
+
+It was `.bin/standards-$SHA` inside the consumer. Rolling that out to the third
+repo, **flowgraph's markdownlint walked the cached `quality-rules.md` and failed
+the build on this repo's table style.** `.bin/` is gitignored; markdownlint does
+not consult gitignore. A fetched tool is not the consumer's content, and every
+linter, formatter, coverage walker and dead-code scanner in the fleet would have
+to be told that separately — so it does not sit in the tree at all.
 
 The first two metric-registry consumers each grew their own four-variable,
 cached-download Makefile target instead. Wiring the flag gate into three more

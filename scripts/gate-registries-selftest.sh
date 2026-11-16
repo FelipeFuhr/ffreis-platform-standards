@@ -13,13 +13,29 @@ SHA=45f723aab970e319e1aa1c37482b3a777f7531d7
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
+# Every case gets its OWN cache directory, and none of them get the
+# developer's real one.
+#
+# When the cache moved out of the consumer repo it became keyed by sha alone,
+# so the fixtures started sharing it — and the "an unreachable standards host
+# must exit 2" case began passing because an earlier case had already warmed
+# the tools. A test that cannot fail is the thing this whole script exists to
+# prevent; it must not be reintroduced here.
+cache_for() { # cache_for <name> -> a fresh, empty cache path
+  local dir="$TMP/cache-$1"
+  rm -rf "$dir"
+  mkdir -p "$dir"
+  printf '%s' "$dir"
+}
+
 pass=0
 fail=0
 
 check() { # check <want-exit> <label> <dir> [env-prefix...]
   local want="$1" label="$2" dir="$3"; shift 3
   local out got
-  out="$(env "$@" bash "$GATE" "$SHA" "$dir" 2>&1)"; got=$?
+  out="$(env "FFREIS_STANDARDS_CACHE=$(cache_for "$(basename "$dir")")" "$@" \
+    bash "$GATE" "$SHA" "$dir" 2>&1)"; got=$?
   if [[ "$got" == "$want" ]]; then
     pass=$((pass + 1))
   else
@@ -31,7 +47,8 @@ check() { # check <want-exit> <label> <dir> [env-prefix...]
 check_text() { # check_text <label> <needle> <dir>
   local label="$1" needle="$2" dir="$3"
   local out
-  out="$(bash "$GATE" "$SHA" "$dir" 2>&1)"
+  out="$(FFREIS_STANDARDS_CACHE="$(cache_for "text-$(basename "$dir")")" \
+    bash "$GATE" "$SHA" "$dir" 2>&1)"
   if grep -qF -- "$needle" <<<"$out"; then
     pass=$((pass + 1))
   else
@@ -90,7 +107,7 @@ check_text "a failure in the first registry still reports the second" "metrics/m
 pinned=$(mk pinned); mkdir -p "$pinned/flags"
 printf '%s' "$valid_flag" > "$pinned/flags/flags.json"
 for notasha in main v1.12.0 45f723a ""; do
-  out="$(bash "$GATE" "$notasha" "$pinned" 2>&1)"; got=$?
+  out="$(FFREIS_STANDARDS_CACHE="$(cache_for pin)" bash "$GATE" "$notasha" "$pinned" 2>&1)"; got=$?
   if [[ "$got" == 2 ]]; then pass=$((pass + 1)); else
     fail=$((fail + 1)); printf 'FAIL a non-sha pin (%s) must exit 2, got %s\n' "${notasha:-<empty>}" "$got"
   fi
@@ -101,17 +118,22 @@ done
 # against nothing the moment the standards repo moved a file.
 nocache=$(mk nocache); mkdir -p "$nocache/flags"
 printf '%s' "$valid_flag" > "$nocache/flags/flags.json"
-out="$(PLATFORM_STANDARDS_RAW=https://127.0.0.1:1 bash "$GATE" "$SHA" "$nocache" 2>&1)"; got=$?
+# A COLD cache is the whole point of this case: with a warm one, exit 0 is
+# correct behaviour and the assertion below would be vacuous.
+out="$(FFREIS_STANDARDS_CACHE="$(cache_for cold)" \
+  PLATFORM_STANDARDS_RAW=https://127.0.0.1:1 bash "$GATE" "$SHA" "$nocache" 2>&1)"; got=$?
 if [[ "$got" == 2 ]]; then pass=$((pass + 1)); else
-  fail=$((fail + 1)); printf 'FAIL an unreachable standards host must exit 2, got %s\n     %s\n' "$got" "$out"
+  fail=$((fail + 1)); printf 'FAIL an unreachable standards host must exit 2 on a COLD cache, got %s\n     %s\n' "$got" "$out"
 fi
 
 # --- and once warmed, it needs no network ------------------------------------
 # This is what lets the gate run in a sandboxed CI job and on a plane.
 warm=$(mk warm); mkdir -p "$warm/flags"
 printf '%s' "$valid_flag" > "$warm/flags/flags.json"
-bash "$GATE" "$SHA" "$warm" >/dev/null 2>&1
-out="$(PLATFORM_STANDARDS_RAW=https://127.0.0.1:1 bash "$GATE" "$SHA" "$warm" 2>&1)"; got=$?
+warmcache="$(cache_for warm)"
+FFREIS_STANDARDS_CACHE="$warmcache" bash "$GATE" "$SHA" "$warm" >/dev/null 2>&1
+out="$(FFREIS_STANDARDS_CACHE="$warmcache" \
+  PLATFORM_STANDARDS_RAW=https://127.0.0.1:1 bash "$GATE" "$SHA" "$warm" 2>&1)"; got=$?
 if [[ "$got" == 0 ]]; then pass=$((pass + 1)); else
   fail=$((fail + 1)); printf 'FAIL a warmed cache must work offline, got %s\n     %s\n' "$got" "$out"
 fi
