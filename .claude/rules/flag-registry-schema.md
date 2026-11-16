@@ -120,3 +120,41 @@ match only as text. The validator now names the type and offers both fixes
 (quote the default, or make it a typed constant) rather than stating an
 apparent contradiction.
 
+## Wiring the gate in a consumer: one line
+
+`scripts/gate-registries.sh` validates whichever registries a repo owns —
+`flags/flags.json`, `metrics/metrics.json`, or both — against the schemas at a
+pinned commit of this repo. A consumer wires it once:
+
+```make
+# ffreis-platform-standards, pinned. A tag or branch is NOT a pin: the gate's
+# verdict would move under the repo without its diff changing, and the script
+# rejects anything that is not a 40-char sha for exactly that reason.
+STANDARDS_SHA ?= <40-char sha>
+
+validate-registries:
+	@bash .bin/standards/gate-registries.sh "$(STANDARDS_SHA)"
+```
+
+The first two metric-registry consumers each grew their own four-variable,
+cached-download Makefile target instead. Wiring the flag gate into three more
+repos would have made five copies of the same twelve lines — already diverging,
+since the flag validator needs three files where the metric one needs two. The
+next registry kind extends this one script rather than every Makefile in the
+fleet.
+
+Two properties worth not losing:
+
+- **A repo with no registry exits 0**, with a line saying what it did not find.
+  A gate that cannot be wired unconditionally gets wired selectively, and then
+  the repo that most needs it is the one nobody remembers to wire. Whether a
+  repo *should* own a registry is `audit-repo-standards.sh`'s question
+  (`flag-seams` / `metric-seams`), not this script's.
+- **An unfetchable tool is exit 2, never a pass.** If a stale pin reported
+  success, every consumer would silently gate against nothing the moment a file
+  moved in this repo. A fetched HTML error page is caught too — those arrive as
+  200 OK and non-empty, and would otherwise fail later as a syntax error, which
+  reads as a broken registry rather than a broken pin.
+
+Once warmed the cache needs no network, so the gate runs in a sandboxed CI job.
+

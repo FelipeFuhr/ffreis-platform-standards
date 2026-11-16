@@ -101,6 +101,7 @@ test: ## Run the repo's behaviour locks (hermetic; stubs cargo)
 	@bash scripts/validate-flag-registry-selftest.sh
 	@bash scripts/validate-metric-registry-selftest.sh
 	@bash scripts/metric-coverage-report-selftest.sh
+	@bash scripts/gate-registries-selftest.sh
 	@bash scripts/audit-make-inline-comments-selftest.sh
 
 shellcheck: ## Lint shell scripts

@@ -66,6 +66,8 @@ jobs:
 
         bash scripts/metric-coverage-report-selftest.sh
 
+        bash scripts/gate-registries-selftest.sh
+
         pip install PyYAML --quiet
 
         python3 -c "
