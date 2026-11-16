@@ -449,6 +449,100 @@ expect_fail "missing required top-level key" "missing required key \`flags\`" <<
 }
 JSON
 
+# --- effect=constant -----------------------------------------------------
+#
+# A magic literal given a name, with no alternatives. The vocabulary had no
+# home for it: `route` demands >=2 options and `toggle` is on/off, so the
+# fleet's one such flag (heavy-heater's support_fee_rate) was declared
+# effect=route with a single-item options list and had been failing this
+# validator since it was written — unnoticed, because nothing ran it.
+
+expect_ok "a declared constant needs no options" <<'JSON'
+{
+  "version": 1,
+  "flags": [
+    {
+      "name": "support_fee_rate",
+      "kind": "value",
+      "category": "feature",
+      "binding": "compile",
+      "effect": "constant",
+      "value_type": "number",
+      "default": 0.08,
+      "seam": "order support-fee calc",
+      "description": "The support fee rate, declared once so the literal is not repeated."
+    }
+  ]
+}
+JSON
+
+expect_fail "a constant carrying options is a route" "must not carry \`options\`" <<'JSON'
+{
+  "version": 1,
+  "flags": [
+    {
+      "name": "fee", "kind": "value", "category": "feature", "binding": "compile",
+      "effect": "constant", "value_type": "number", "default": 0.08,
+      "options": ["0.08", "0.09"],
+      "seam": "s", "description": "d"
+    }
+  ]
+}
+JSON
+
+expect_fail "a constant without a declared type" "effect=constant requires \`value_type\`" <<'JSON'
+{
+  "version": 1,
+  "flags": [
+    {
+      "name": "fee", "kind": "adapter", "category": "feature", "binding": "compile",
+      "effect": "constant", "default": 0.08, "seam": "s", "description": "d"
+    }
+  ]
+}
+JSON
+
+expect_fail "a constant with no value at all" "effect=constant requires \`default\`" <<'JSON'
+{
+  "version": 1,
+  "flags": [
+    {
+      "name": "fee", "kind": "value", "category": "feature", "binding": "compile",
+      "effect": "constant", "value_type": "number", "seam": "s", "description": "d"
+    }
+  ]
+}
+JSON
+
+expect_fail "a one-option route points at the constant effect" "declare it effect=constant" <<'JSON'
+{
+  "version": 1,
+  "flags": [
+    {
+      "name": "fee", "kind": "value", "category": "feature", "binding": "compile",
+      "effect": "route", "value_type": "number", "default": "0.08",
+      "options": ["0.08"], "seam": "s", "description": "d"
+    }
+  ]
+}
+JSON
+
+# The diagnostic that read as a validator bug: "default 0.08 is not one of
+# ['0.08']". It is a TYPE mismatch, and saying so is the difference between a
+# message an author can act on and one they report as a tooling fault.
+expect_fail "a default matching an option only as text says so" "matches an option only as text" <<'JSON'
+{
+  "version": 1,
+  "flags": [
+    {
+      "name": "mode", "kind": "value", "category": "feature", "binding": "compile",
+      "effect": "route", "value_type": "number", "default": 2,
+      "options": ["1", "2"], "seam": "s", "description": "d"
+    }
+  ]
+}
+JSON
+
 echo
 echo "passed: $pass   failed: $fail"
 [[ "$fail" -eq 0 ]] || exit 1

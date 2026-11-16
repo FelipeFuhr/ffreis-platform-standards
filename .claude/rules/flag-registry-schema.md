@@ -82,3 +82,41 @@ repo with boundary-crossing code (env-branches, mock/real swaps) but no
 `flags/flags.json` — presence-only heuristic, not schema validation. The
 `flag-seam-auditor` subagent (`.claude/agents/flag-seam-auditor.md`) does the deeper,
 semantic audit.
+
+## `effect: constant` — a magic literal given a name
+
+`route` demands at least two options and `toggle` is on/off, so neither fit a
+value that has exactly one legitimate setting and exists purely so the literal
+lives in one named place instead of three. That gap was not theoretical: the
+fleet's one such flag (`heavy-heater`'s `support_fee_rate`, extracted from a
+hardcoded `(subtotal * 0.08).clamp(…)`) had been declared `effect: route` with a
+single-item `options` list, and had therefore been FAILING this validator since
+the day it was written — unnoticed, because nothing in any consumer repo ran it.
+
+A constant:
+
+```json
+{
+  "name": "support_fee_rate",
+  "kind": "value", "category": "feature", "binding": "compile",
+  "effect": "constant", "value_type": "number", "default": 0.08,
+  "seam": "launcher order support-fee calc",
+  "description": "Support fee rate, declared once so the literal is not repeated."
+}
+```
+
+- carries **no `options`** — if it has alternatives it is a `route`, and a
+  one-item `options` list is the signature of a constant forced into the route
+  shape. The validator says exactly that, and points at this effect.
+- requires `value_type` and `default`. The default *is* the value; a constant
+  with no value declares nothing.
+
+### A diagnostic worth keeping
+
+`default 0.08 is not one of its options ['0.08']` reads as a bug in the
+validator, not in the registry — and that is the literal message the fleet's
+failing registry produced. `options` holds strings, so a numeric default can
+match only as text. The validator now names the type and offers both fixes
+(quote the default, or make it a typed constant) rather than stating an
+apparent contradiction.
+
