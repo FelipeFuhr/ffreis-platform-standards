@@ -169,19 +169,51 @@ def check_shape(flag: dict, label: str, facts: SchemaFacts) -> list[str]:
 def check_conditionals(flag: dict, label: str) -> list[str]:
     findings = []
     options = flag.get("options")
-    if flag.get("effect") == "route":
+    effect = flag.get("effect")
+
+    if effect == "route":
         if not options:
             findings.append(f"{label}: effect=route requires `options`")
         elif len(options) < 2:
-            findings.append(f"{label}: effect=route requires at least 2 options")
+            findings.append(
+                f"{label}: effect=route requires at least 2 options — one alternative is "
+                "not a route. If this is a magic literal given a name, declare it "
+                "effect=constant and drop `options`."
+            )
+    if effect == "constant":
+        if options:
+            findings.append(
+                f"{label}: effect=constant must not carry `options` — a constant has no "
+                "alternatives by definition; declare it effect=route if it does"
+            )
+        if "value_type" not in flag:
+            findings.append(
+                f"{label}: effect=constant requires `value_type` — the whole point is that "
+                "the value is declared once, so its type must be declared with it"
+            )
+        if "default" not in flag:
+            findings.append(f"{label}: effect=constant requires `default` — it IS the value")
+
     if flag.get("kind") == "value" and "value_type" not in flag:
         findings.append(f"{label}: kind=value requires `value_type`")
     if flag.get("kind") == "gate" and flag.get("effect") != "toggle":
         findings.append(f"{label}: kind=gate must have effect=toggle")
+
     if options and "default" in flag and flag["default"] not in options:
-        findings.append(
-            f"{label}: default {flag['default']!r} is not one of its options {options}"
-        )
+        default = flag["default"]
+        # Say so when the mismatch is only the TYPE. "default 0.08 is not one of
+        # ['0.08']" reads as a bug in this validator rather than in the registry,
+        # and that exact message is what the fleet's one failing registry showed.
+        if str(default) in [str(option) for option in options]:
+            findings.append(
+                f"{label}: default {default!r} ({type(default).__name__}) matches an option "
+                f"only as text — `options` holds strings, so declare the default as "
+                f'"{default}" or make this a typed constant (effect=constant, value_type)'
+            )
+        else:
+            findings.append(
+                f"{label}: default {default!r} is not one of its options {options}"
+            )
     return findings
 
 

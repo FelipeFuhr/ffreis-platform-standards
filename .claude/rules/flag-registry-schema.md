@@ -82,3 +82,89 @@ repo with boundary-crossing code (env-branches, mock/real swaps) but no
 `flags/flags.json` — presence-only heuristic, not schema validation. The
 `flag-seam-auditor` subagent (`.claude/agents/flag-seam-auditor.md`) does the deeper,
 semantic audit.
+
+## `effect: constant` — a magic literal given a name
+
+`route` demands at least two options and `toggle` is on/off, so neither fit a
+value that has exactly one legitimate setting and exists purely so the literal
+lives in one named place instead of three. That gap was not theoretical: the
+fleet's one such flag (`heavy-heater`'s `support_fee_rate`, extracted from a
+hardcoded `(subtotal * 0.08).clamp(…)`) had been declared `effect: route` with a
+single-item `options` list, and had therefore been FAILING this validator since
+the day it was written — unnoticed, because nothing in any consumer repo ran it.
+
+A constant:
+
+```json
+{
+  "name": "support_fee_rate",
+  "kind": "value", "category": "feature", "binding": "compile",
+  "effect": "constant", "value_type": "number", "default": 0.08,
+  "seam": "launcher order support-fee calc",
+  "description": "Support fee rate, declared once so the literal is not repeated."
+}
+```
+
+- carries **no `options`** — if it has alternatives it is a `route`, and a
+  one-item `options` list is the signature of a constant forced into the route
+  shape. The validator says exactly that, and points at this effect.
+- requires `value_type` and `default`. The default *is* the value; a constant
+  with no value declares nothing.
+
+### A diagnostic worth keeping
+
+`default 0.08 is not one of its options ['0.08']` reads as a bug in the
+validator, not in the registry — and that is the literal message the fleet's
+failing registry produced. `options` holds strings, so a numeric default can
+match only as text. The validator now names the type and offers both fixes
+(quote the default, or make it a typed constant) rather than stating an
+apparent contradiction.
+
+## Wiring the gate in a consumer: one line
+
+`scripts/gate-registries.sh` validates whichever registries a repo owns —
+`flags/flags.json`, `metrics/metrics.json`, or both — against the schemas at a
+pinned commit of this repo. A consumer wires it once:
+
+```make
+# ffreis-platform-standards, pinned. A tag or branch is NOT a pin: the gate's
+# verdict would move under the repo without its diff changing, and the script
+# rejects anything that is not a 40-char sha for exactly that reason.
+STANDARDS_SHA   ?= <40-char sha>
+STANDARDS_CACHE ?= $(HOME)/.cache/ffreis-standards/$(STANDARDS_SHA)
+
+validate-registries:
+	@bash $(STANDARDS_CACHE)/gate-registries.sh "$(STANDARDS_SHA)"
+```
+
+### The cache lives outside the repo, and that is a correctness property
+
+It was `.bin/standards-$SHA` inside the consumer. Rolling that out to the third
+repo, **flowgraph's markdownlint walked the cached `quality-rules.md` and failed
+the build on this repo's table style.** `.bin/` is gitignored; markdownlint does
+not consult gitignore. A fetched tool is not the consumer's content, and every
+linter, formatter, coverage walker and dead-code scanner in the fleet would have
+to be told that separately — so it does not sit in the tree at all.
+
+The first two metric-registry consumers each grew their own four-variable,
+cached-download Makefile target instead. Wiring the flag gate into three more
+repos would have made five copies of the same twelve lines — already diverging,
+since the flag validator needs three files where the metric one needs two. The
+next registry kind extends this one script rather than every Makefile in the
+fleet.
+
+Two properties worth not losing:
+
+- **A repo with no registry exits 0**, with a line saying what it did not find.
+  A gate that cannot be wired unconditionally gets wired selectively, and then
+  the repo that most needs it is the one nobody remembers to wire. Whether a
+  repo *should* own a registry is `audit-repo-standards.sh`'s question
+  (`flag-seams` / `metric-seams`), not this script's.
+- **An unfetchable tool is exit 2, never a pass.** If a stale pin reported
+  success, every consumer would silently gate against nothing the moment a file
+  moved in this repo. A fetched HTML error page is caught too — those arrive as
+  200 OK and non-empty, and would otherwise fail later as a syntax error, which
+  reads as a broken registry rather than a broken pin.
+
+Once warmed the cache needs no network, so the gate runs in a sandboxed CI job.
+
