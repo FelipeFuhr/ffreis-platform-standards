@@ -53,13 +53,40 @@ as 3 of some unknown larger number. The baseline has to be measured a different
 way — server logs, edge metrics — because a baseline collected through the same
 gate carries the same blind spot, and the validator rejects one that does.
 
+## Numbers about artifacts, not people
+
+`population` was built for traffic, and its five original values all answer
+"whose behaviour is this". Some published numbers answer nothing of the kind: an
+SEO score over an uploaded site, a lint ratio over a repo, a coverage figure over
+a built tree. These describe **artifacts**, and forcing one into `all-traffic`
+because it is "complete" was the available workaround — which is how a reader
+ends up believing a number was measured from visits.
+
+`artifact-census` is for them: every artifact in a submitted or built set,
+enumerated exhaustively rather than sampled.
+
+- **It must not carry a `baseline`.** It is complete by construction, so there
+  is nobody missing for a baseline to account for. `COMPLETE_POPULATIONS` in the
+  validator holds this one and `all-traffic` together.
+- **It cannot BE a `baseline` either**, and that is a separate rule rather than
+  the same one read backwards. A baseline exists to cover a consent-gated
+  metric's blind spot in *visitors*; a census of pages is complete over the
+  wrong subjects. Only `all-traffic` qualifies, which is why
+  `BASELINE_POPULATION` stayed a single value when `COMPLETE_POPULATIONS`
+  became a set.
+- **A quotient over it still needs `min_sample`**, for a reason that is not
+  sampling error: a partial upload is indistinguishable from a genuinely small
+  set. Declare the floor, publish the count the number was computed over, and
+  **withhold** below it — a silently absent score reads as a zero.
+
 ## Enforcement
 
 `scripts/validate-metric-registry.py` checks what JSON Schema cannot: that
 `denominator` and `baseline` resolve to declared metrics, that a baseline is
-genuinely `all-traffic`, that a metric is either covered or carries a reasoned
-exception, that a `mixed` population says what it mixes, and that an exception
-reason is a real reason rather than `TODO`.
+genuinely `all-traffic`, that a population complete by construction does not
+carry one, that a metric is either covered or carries a reasoned exception, that
+a `mixed` population says what it mixes, and that an exception reason is a real
+reason rather than `TODO`.
 
 Run it with `make validate-metrics`; it is part of `make fmt-check`, and its
 behaviour lock (`scripts/validate-metric-registry-selftest.sh`) runs in

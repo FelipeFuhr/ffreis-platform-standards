@@ -585,6 +585,136 @@ echo
 # An extraction failure must be LOUD. If the schema is ever restructured so the
 # enums no longer resolve, the validator has to exit 2 rather than treat every
 # value as valid — the failure mode that makes a gate worthless.
+echo "-- an artifact census is complete, and is not a traffic baseline --"
+
+# A score over a submitted set of pages. It describes artifacts, not people, so
+# no baseline is possible — but it is still a quotient, so it must name what it
+# is over and the floor below which it is withheld. A partial upload is
+# indistinguishable from a genuinely small site, which is what min_sample is
+# guarding here rather than a sampling error.
+expect_ok "artifact-census quotient with a denominator and a floor" <<'JSON'
+{
+  "version": 1,
+  "project": "selftest",
+  "metrics": [
+    {
+      "name": "seo_applicable_weight",
+      "title": "Scored criteria weight that applied",
+      "kind": "count",
+      "surface": "seo-report",
+      "population": "artifact-census",
+      "source": { "signal": "seorules.Assessed" },
+      "coverage": ["audit-clean-site"],
+      "seam": "pkg/advisor.Score"
+    },
+    {
+      "name": "seo_score",
+      "title": "SEO score",
+      "kind": "ratio",
+      "surface": "seo-report",
+      "population": "artifact-census",
+      "source": { "signal": "outputcheck.Finding" },
+      "denominator": "seo_applicable_weight",
+      "min_sample": 2,
+      "coverage": ["audit-clean-site", "audit-bare-site"],
+      "seam": "pkg/advisor.Score"
+    }
+  ]
+}
+JSON
+
+expect_fail "artifact-census carrying a baseline" "complete by construction" <<'JSON'
+{
+  "version": 1,
+  "project": "selftest",
+  "metrics": [
+    {
+      "name": "site_page_views",
+      "title": "Page views",
+      "kind": "count",
+      "surface": "seo-report",
+      "population": "all-traffic",
+      "source": { "signal": "cloudfront:cs-uri-stem" },
+      "coverage": ["edge-logs"],
+      "seam": "src/traffic.py:page_views"
+    },
+    {
+      "name": "seo_pages_audited",
+      "title": "Pages audited",
+      "kind": "count",
+      "surface": "seo-report",
+      "population": "artifact-census",
+      "baseline": "site_page_views",
+      "source": { "signal": "loader.FromZip" },
+      "coverage": ["audit-clean-site"],
+      "seam": "pkg/advisor.Score"
+    }
+  ]
+}
+JSON
+
+# An artifact census is complete, but it is complete over the wrong subjects: it
+# cannot stand in for the visitors a consent-gated metric is missing.
+expect_fail "artifact census used as a traffic baseline" "not 'all-traffic'" <<'JSON'
+{
+  "version": 1,
+  "project": "selftest",
+  "metrics": [
+    {
+      "name": "seo_pages_audited",
+      "title": "Pages audited",
+      "kind": "count",
+      "surface": "seo-report",
+      "population": "artifact-census",
+      "source": { "signal": "loader.FromZip" },
+      "coverage": ["audit-clean-site"],
+      "seam": "pkg/advisor.Score"
+    },
+    {
+      "name": "consented_sessions",
+      "title": "Consented sessions",
+      "kind": "count",
+      "surface": "seo-report",
+      "population": "consenting-visitor",
+      "baseline": "seo_pages_audited",
+      "source": { "signal": "analytics/session" },
+      "coverage": ["consent-accepted"],
+      "seam": "src/aggregate.rs:sessions"
+    }
+  ]
+}
+JSON
+
+expect_fail "artifact-census ratio with no floor" "requires \`min_sample\`" <<'JSON'
+{
+  "version": 1,
+  "project": "selftest",
+  "metrics": [
+    {
+      "name": "seo_applicable_weight",
+      "title": "Applicable weight",
+      "kind": "count",
+      "surface": "seo-report",
+      "population": "artifact-census",
+      "source": { "signal": "seorules.Assessed" },
+      "coverage": ["audit-clean-site"],
+      "seam": "pkg/advisor.Score"
+    },
+    {
+      "name": "seo_score",
+      "title": "SEO score",
+      "kind": "ratio",
+      "surface": "seo-report",
+      "population": "artifact-census",
+      "source": { "signal": "outputcheck.Finding" },
+      "denominator": "seo_applicable_weight",
+      "coverage": ["audit-clean-site"],
+      "seam": "pkg/advisor.Score"
+    }
+  ]
+}
+JSON
+
 echo "-- a schema it cannot read fails loudly, it does not pass --"
 stub_schema="$tmpdir/stub-schema.json"
 printf '{"type":"object","required":["version","metrics"],"properties":{"version":{},"metrics":{}}}\n' > "$stub_schema"
