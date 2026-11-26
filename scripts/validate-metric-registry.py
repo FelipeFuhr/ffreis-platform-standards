@@ -48,8 +48,18 @@ PLACEHOLDER_REASONS = frozenset(
 MIN_REASON_CHARS = 15
 
 # The population that can stand as a denominator for any other: it is measured
-# without needing the visitor's cooperation, so it has no selection gap.
+# without needing the visitor's cooperation, so it has no selection gap. A
+# `baseline` must point at one of these, and only this one qualifies — an
+# artifact census is complete but measures artifacts, so it cannot cover a
+# traffic metric's blind spot.
 BASELINE_POPULATION = "all-traffic"
+
+# Populations that are complete by construction and therefore must NOT carry a
+# `baseline`: there is no one missing for a baseline to account for. Kept
+# separate from BASELINE_POPULATION because the two answer different questions —
+# "may this be a baseline" and "does this need one" — and an artifact census
+# answers no to the first and no to the second.
+COMPLETE_POPULATIONS = frozenset({BASELINE_POPULATION, "artifact-census"})
 
 # Populations that are a subset of the people their surface appears to describe,
 # and so cannot be read on their own.
@@ -216,10 +226,10 @@ def check_conditionals(metric: dict, label: str) -> list[str]:
             f"{label}: population={population} requires `baseline` — this sample cannot "
             "measure whoever is missing from it, so it cannot be its own denominator"
         )
-    if population == BASELINE_POPULATION and "baseline" in metric:
+    if population in COMPLETE_POPULATIONS and "baseline" in metric:
         findings.append(
-            f"{label}: population={BASELINE_POPULATION} must not carry `baseline` — it is "
-            "already the population a baseline would point at"
+            f"{label}: population={population} must not carry `baseline` — it is complete "
+            "by construction, so there is nobody missing for a baseline to account for"
         )
     if population == "mixed":
         description = metric.get("description")
